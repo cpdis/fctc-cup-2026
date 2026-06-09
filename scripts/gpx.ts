@@ -60,7 +60,11 @@ export function parseGpxFile(path: string): ParsedTrack {
 
   const geom = feature.geometry as unknown as Geom;
   const rawCoords = flattenCoords(geom);
-  const times = flattenTimes((feature.properties as Record<string, unknown>)?.coordTimes);
+  // togeojson v7 nests per-point times under coordinateProperties.times;
+  // older exports used a top-level coordTimes. Support both.
+  const props = feature.properties as Record<string, unknown>;
+  const coordProps = props?.coordinateProperties as Record<string, unknown> | undefined;
+  const times = flattenTimes(coordProps?.times ?? props?.coordTimes);
 
   const coords: LngLat[] = rawCoords.map((c) => [c[0], c[1]]);
   const points: TrackPoint[] = rawCoords.map((c, i) => ({
