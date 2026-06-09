@@ -3,6 +3,7 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import { createMap } from './map';
 import { Clock } from './clock';
 import { createTransport } from './transport';
+import { createEngine } from './engine';
 import type { ReplayData } from './types';
 
 /** Subsystems that need a per-frame tick (transport, engine, gap chart…). */
@@ -45,9 +46,6 @@ async function main(): Promise<void> {
   );
   frames.push((t) => transport.update(t));
 
-  // The render engine (U5), leaderboard (U6), and gap chart (U7) push their own
-  // per-frame callbacks here as they come online.
-
   function loop(): void {
     const t = clock.tick();
     for (const f of frames) f(t);
@@ -55,7 +53,18 @@ async function main(): Promise<void> {
   }
   requestAnimationFrame(loop);
 
+  // The engine needs the style loaded before it can add its layers.
   await handle.whenReady;
+
+  const engine = createEngine(handle.map, data);
+  frames.push((t) => engine.render(t));
+
+  if (import.meta.env.DEV) {
+    (window as unknown as Record<string, unknown>).__fctc = { clock, engine, data };
+  }
+
+  // The leaderboard (U6) and gap chart (U7) push their callbacks here too.
+
   boot.hidden = true;
 }
 

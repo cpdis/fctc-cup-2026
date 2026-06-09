@@ -126,9 +126,9 @@ function addRouteLine(map: MlMap, route: RouteLUT): void {
     source: ROUTE_SOURCE,
     layout: { 'line-join': 'round', 'line-cap': 'round' },
     paint: {
-      'line-color': '#0a0e14',
-      'line-width': 9,
-      'line-opacity': 0.65,
+      'line-color': '#05070b',
+      'line-width': 10,
+      'line-opacity': 0.85,
     },
   });
   map.addLayer({
@@ -137,9 +137,9 @@ function addRouteLine(map: MlMap, route: RouteLUT): void {
     source: ROUTE_SOURCE,
     layout: { 'line-join': 'round', 'line-cap': 'round' },
     paint: {
-      'line-color': '#3a4658',
+      'line-color': '#7d8da3',
       'line-width': 3,
-      'line-opacity': 0.9,
+      'line-opacity': 0.95,
     },
   });
 }
