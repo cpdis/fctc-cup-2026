@@ -304,3 +304,206 @@ body {
     transition-duration: 1ms;
   }
 }
+
+/* ── Panel + leaderboard (U6) ─────────────────────────────────────────── */
+#panel {
+  position: absolute;
+  z-index: 15;
+  background: rgba(18, 24, 34, 0.92);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+#panel:empty {
+  display: none;
+}
+
+/* Desktop: docked side panel */
+@media (min-width: 901px) {
+  #panel {
+    top: calc(58px + var(--safe-top));
+    right: 16px;
+    bottom: 84px;
+    width: 296px;
+    border-radius: 14px;
+  }
+  #sheet-handle {
+    display: none;
+  }
+}
+
+/* Mobile: bottom sheet */
+@media (max-width: 900px) {
+  #panel {
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 74vh;
+    border-radius: 18px 18px 0 0;
+    border-bottom: none;
+    will-change: transform;
+    padding-bottom: calc(72px + var(--safe-bottom)); /* clear the transport */
+  }
+}
+
+#sheet-handle {
+  flex: 0 0 auto;
+  height: 26px;
+  border: none;
+  background: none;
+  cursor: grab;
+  position: relative;
+  touch-action: none;
+}
+#sheet-handle::before {
+  content: '';
+  position: absolute;
+  top: 9px;
+  left: 50%;
+  width: 38px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--ink-faint);
+  transform: translateX(-50%);
+}
+
+.sheet-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 14;
+  background: #05070b;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--dur-sheet) var(--ease-sheet);
+}
+@media (min-width: 901px) {
+  .sheet-scrim {
+    display: none;
+  }
+}
+
+#leaderboard {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 6px 8px 10px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.lb-row {
+  display: grid;
+  grid-template-columns: 22px 12px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 10px;
+  border: none;
+  border-radius: 9px;
+  background: none;
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+  transition: opacity var(--dur-ui) var(--ease-out),
+    background var(--dur-ui) var(--ease-out);
+}
+.lb-row:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+.lb-rank {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--ink-dim);
+  text-align: center;
+}
+.lb-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+.lb-name {
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.lb-delta {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--ink-dim);
+  font-variant-numeric: tabular-nums;
+}
+.lb-delta[data-sign='early'] {
+  color: #3fe0a0;
+}
+.lb-delta[data-sign='late'] {
+  color: #ff8e6b;
+}
+.lb-delta[data-sign='running'] {
+  color: var(--ink-faint);
+  font-style: italic;
+}
+.lb-row.winner {
+  background: rgba(255, 210, 63, 0.1);
+}
+.lb-row.winner .lb-name {
+  color: var(--accent);
+}
+
+/* Selection: dim everyone but the selected row */
+#leaderboard[data-sel]:not([data-sel='']) .lb-row:not(.selected) {
+  opacity: var(--dim);
+}
+
+/* On-map label for the selected runner */
+.runner-label {
+  --rl-color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 9px;
+  border-radius: 8px;
+  background: rgba(10, 14, 20, 0.86);
+  border: 1px solid var(--rl-color);
+  font-family: var(--font-ui);
+  font-size: 12px;
+  white-space: nowrap;
+  pointer-events: none;
+  transform-origin: bottom center;
+  animation: label-in var(--dur-ui) var(--ease-out);
+}
+.runner-label .rl-name {
+  font-weight: 700;
+  color: var(--ink);
+}
+.runner-label .rl-delta {
+  font-family: var(--font-mono);
+  color: var(--rl-color);
+  font-variant-numeric: tabular-nums;
+}
+.runner-label .rl-delta:empty {
+  display: none;
+}
+@keyframes label-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(2px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #panel,
+  .lb-row,
+  .sheet-scrim,
+  .runner-label {
+    transition-duration: 1ms;
+    animation-duration: 1ms;
+  }
+}
