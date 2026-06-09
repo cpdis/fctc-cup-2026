@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no"
+    />
+    <title>FCTC Cup — Herdsman Lake</title>
+    <meta
+      name="description"
+      content="The FCTC Cup: watch every runner race their own predicted time around Herdsman Lake."
+    />
+    <link rel="preconnect" href="https://tiles.openfreemap.org" crossorigin />
+  </head>
+  <body>
+    <div id="app">
+      <div id="map" aria-label="Map of Herdsman Lake with the race replay"></div>
+
+      <!-- Title / start-line chrome (U6/U8) -->
+      <header id="masthead">
+        <span class="masthead-mark">FCTC&nbsp;CUP</span>
+        <span class="masthead-sub">Herdsman&nbsp;Lake</span>
+      </header>
+
+      <!-- Leaderboard: side panel on desktop, bottom sheet on mobile (U6) -->
+      <aside id="panel" data-state="peek" aria-label="Cup standings">
+        <button id="sheet-handle" type="button" aria-label="Expand standings"></button>
+        <div id="leaderboard" role="list"></div>
+      </aside>
+
+      <!-- Gap chart: delta vs prediction (U7) -->
+      <section id="gapchart" aria-label="Time ahead or behind prediction"></section>
+
+      <!-- Playback transport (U4) -->
+      <footer id="transport" aria-label="Playback controls"></footer>
+
+      <!-- Boot / error message -->
+      <div id="boot" role="status">Loading the lake…</div>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

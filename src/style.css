@@ -1,0 +1,128 @@
+/* FCTC Cup — base styles + motion tokens.
+   Component styles (panel, transport, gap chart) are layered in by later units.
+   Motion tokens are the single source of cohesion (see plan: Motion & Interaction
+   Design). Every easing/duration/dim value in the app comes from here. */
+
+:root {
+  /* Easing */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1); /* enter/exit, UI feedback */
+  --ease-move: cubic-bezier(0.77, 0, 0.175, 1); /* on-screen movement (re-sort) */
+  --ease-sheet: cubic-bezier(0.32, 0.72, 0, 1); /* mobile drawer */
+
+  /* Durations */
+  --dur-press: 140ms;
+  --dur-ui: 180ms;
+  --dur-move: 220ms;
+  --dur-sheet: 320ms;
+
+  /* Non-selected (dimmed) opacity — shared across map / leaderboard / gap chart */
+  --dim: 0.3;
+
+  /* Palette — athletic, precise, dark */
+  --bg: #0a0e14;
+  --bg-elev: #121822;
+  --bg-elev-2: #18202c;
+  --line: #2a3441;
+  --ink: #e8edf4;
+  --ink-dim: #8b97a7;
+  --ink-faint: #5a6675;
+  --accent: #ffd23f; /* FCTC gold — the Cup */
+
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+
+  --font-display: 'Space Grotesk', 'Helvetica Neue', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  --font-ui: system-ui, -apple-system, 'Helvetica Neue', sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior: none;
+}
+
+#app {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+}
+
+#map {
+  position: absolute;
+  inset: 0;
+}
+
+/* MapLibre attribution — keep it, just tone it down */
+.maplibregl-ctrl-attrib {
+  font-size: 10px;
+  background: rgba(10, 14, 20, 0.6) !important;
+}
+.maplibregl-ctrl-attrib a {
+  color: var(--ink-faint);
+}
+
+/* Masthead */
+#masthead {
+  position: absolute;
+  top: calc(12px + var(--safe-top));
+  left: 16px;
+  z-index: 5;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  pointer-events: none;
+  text-shadow: 0 1px 12px rgba(0, 0, 0, 0.8);
+}
+.masthead-mark {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  font-size: 20px;
+  color: var(--ink);
+}
+.masthead-sub {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--accent);
+}
+
+/* Boot / error */
+#boot {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  z-index: 50;
+  background: var(--bg);
+  color: var(--ink-dim);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  transition: opacity var(--dur-ui) var(--ease-out);
+}
+#boot[hidden] {
+  display: grid; /* keep in flow for the fade */
+  opacity: 0;
+  pointer-events: none;
+}
+#boot[data-error='true'] {
+  color: #ff6b6b;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #boot {
+    transition-duration: 1ms;
+  }
+}
