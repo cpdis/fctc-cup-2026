@@ -7,6 +7,7 @@ import { createTransport } from './transport';
 import { createEngine } from './engine';
 import { createLeaderboard } from './leaderboard';
 import { createLayout } from './layout';
+import { createGapChart } from './gapchart';
 import { formatDelta } from './geo';
 import type { ReplayData } from './types';
 
@@ -84,10 +85,22 @@ async function main(): Promise<void> {
     document.getElementById('sheet-handle') as HTMLElement,
   );
 
+  // Gap chart. On phones it lives at the top of the bottom sheet; on desktop
+  // it's a wide strip above the transport (CSS owns position).
+  const gapEl = document.getElementById('gapchart') as HTMLElement;
+  if (matchMedia('(max-width: 900px)').matches) {
+    const panel = document.getElementById('panel') as HTMLElement;
+    panel.insertBefore(gapEl, document.getElementById('leaderboard'));
+    gapEl.classList.add('in-sheet');
+  }
+  const gapChart = createGapChart(gapEl, data, clock);
+  frames.push((t) => gapChart.update(t));
+
   function setSelection(id: string | null): void {
     selectedId = id;
     engine.setSelected(id);
     leaderboard.setSelected(id);
+    gapChart.setSelected(id);
     if (id) {
       const r = runnersById.get(id)!;
       labelEl.innerHTML = `<span class="rl-name">${r.name}</span><span class="rl-delta"></span>`;
