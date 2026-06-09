@@ -1,7 +1,12 @@
 import './style.css';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { createMap } from './map';
+import { Clock } from './clock';
+import { createTransport } from './transport';
 import type { ReplayData } from './types';
+
+/** Subsystems that need a per-frame tick (transport, engine, gap chart…). */
+type FrameFn = (raceMs: number) => void;
 
 const boot = document.getElementById('boot') as HTMLElement;
 
@@ -29,12 +34,29 @@ async function main(): Promise<void> {
 
   const mapEl = document.getElementById('map') as HTMLElement;
   const handle = createMap(mapEl, data.race, data.route);
+
+  const clock = new Clock({ durationMs: data.race.durationMs });
+  const frames: FrameFn[] = [];
+
+  const transport = createTransport(
+    document.getElementById('transport') as HTMLElement,
+    clock,
+    { runners: data.runners, durationMs: data.race.durationMs },
+  );
+  frames.push((t) => transport.update(t));
+
+  // The render engine (U5), leaderboard (U6), and gap chart (U7) push their own
+  // per-frame callbacks here as they come online.
+
+  function loop(): void {
+    const t = clock.tick();
+    for (const f of frames) f(t);
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+
   await handle.whenReady;
-
   boot.hidden = true;
-
-  // Render engine, transport, leaderboard, and gap chart are wired in later
-  // units once they exist. This keeps U1 a runnable map of the lake.
 }
 
 void main();
