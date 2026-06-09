@@ -79,6 +79,9 @@ describe('createEngine batched updates', () => {
   function fakeMap() {
     const sources: Record<string, { setData: ReturnType<typeof vi.fn> }> = {};
     return {
+      isStyleLoaded: () => true,
+      on: vi.fn(),
+      off: vi.fn(),
       addSource: (id: string) => (sources[id] = { setData: vi.fn() }),
       addLayer: vi.fn(),
       getSource: (id: string) => sources[id],

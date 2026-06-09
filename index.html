@@ -12,6 +12,12 @@
       content="The FCTC Cup: watch every runner race their own predicted time around Herdsman Lake."
     />
     <link rel="preconnect" href="https://tiles.openfreemap.org" crossorigin />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=JetBrains+Mono:wght@400;600&display=swap"
+      rel="stylesheet"
+    />
   </head>
   <body>
     <div id="app">
@@ -34,6 +40,9 @@
 
       <!-- Playback transport (U4) -->
       <footer id="transport" aria-label="Playback controls"></footer>
+
+      <!-- Winner reveal (U8) -->
+      <div id="winner" hidden role="status" aria-live="polite"></div>
 
       <!-- Boot / error message -->
       <div id="boot" role="status">Loading the lake…</div>

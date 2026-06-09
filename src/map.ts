@@ -21,6 +21,14 @@ const PMTILES_PATH = '/basemap.pmtiles';
 const OPENFREEMAP_DARK = 'https://tiles.openfreemap.org/styles/dark';
 const ROUTE_SOURCE = 'route';
 
+// A self-contained fallback style (no tiles/sprite/glyphs) — used when
+// VITE_FLAT_BASEMAP=true, e.g. for offline dev or deterministic screenshots.
+const FLAT_STYLE: StyleSpecification = {
+  version: 8,
+  sources: {},
+  layers: [{ id: 'bg', type: 'background', paint: { 'background-color': '#0a0e14' } }],
+};
+
 let pmtilesRegistered = false;
 function registerPmtiles(): void {
   if (pmtilesRegistered) return;
@@ -74,6 +82,7 @@ export function createMap(
   route: RouteLUT,
 ): MapHandle {
   const usePmtiles = import.meta.env.VITE_USE_PMTILES === 'true';
+  const useFlat = import.meta.env.VITE_FLAT_BASEMAP === 'true';
   if (usePmtiles) registerPmtiles();
 
   const bounds: LngLatBoundsLike = [
@@ -81,9 +90,15 @@ export function createMap(
     [race.bounds[2], race.bounds[3]],
   ];
 
+  const style: string | StyleSpecification = useFlat
+    ? FLAT_STYLE
+    : usePmtiles
+      ? pmtilesStyle()
+      : OPENFREEMAP_DARK;
+
   const map = new maplibregl.Map({
     container,
-    style: usePmtiles ? pmtilesStyle() : OPENFREEMAP_DARK,
+    style,
     bounds,
     fitBoundsOptions: { padding: 48 },
     maxBounds: padBounds(race.bounds, 0.25),
@@ -96,11 +111,31 @@ export function createMap(
   map.touchZoomRotate.disableRotation();
   map.keyboard.disableRotation();
 
+  // Resolve as soon as the style spec is parsed enough to add layers. Fall back
+  // to a timeout so a slow or partial basemap (flaky CDN, sprite/glyph stall)
+  // never hangs the whole replay — the markers and chrome still come up.
   const whenReady = new Promise<void>((resolve) => {
-    map.on('load', () => {
-      addRouteLine(map, route);
+    let done = false;
+    const finish = (): void => {
+      if (done) return;
+      done = true;
+      map.off('styledata', onStyle);
+      try {
+        addRouteLine(map, route);
+      } catch {
+        /* style not fully parsed; the route line is cosmetic, skip it */
+      }
       resolve();
-    });
+    };
+    const onStyle = (): void => {
+      if (map.isStyleLoaded()) finish();
+    };
+    if (map.isStyleLoaded()) finish();
+    else {
+      map.on('styledata', onStyle);
+      map.once('load', finish);
+      setTimeout(finish, 6000); // hard fallback
+    }
   });
 
   return { map, whenReady };

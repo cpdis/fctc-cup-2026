@@ -57,10 +57,11 @@ interface RunnerView {
   trail: Feature<LineString>;
 }
 
-export function createEngine(map: MlMap, data: ReplayData): EngineHandle {
+export function createEngine(map: MlMap, data: ReplayData, winnerId?: string | null): EngineHandle {
   const { route } = data;
   const L = route.lengthM;
   const active = data.runners.filter((r) => !r.noData);
+  const winner = active.find((r) => r.id === winnerId) ?? null;
 
   const views: RunnerView[] = active.map((runner) => ({
     runner,
@@ -77,7 +78,27 @@ export function createEngine(map: MlMap, data: ReplayData): EngineHandle {
   const ghostFC = collection(views.map((v) => v.ghost as Feature<Point>));
   const trailFC = collection(views.map((v) => v.trail));
 
-  addSourcesAndLayers(map);
+  // A single soft halo that appears on the winner's marker once they finish.
+  const glow: Feature<Point> = {
+    type: 'Feature',
+    properties: { color: winner?.color ?? '#fff', r: 0, opacity: 0 },
+    geometry: { type: 'Point', coordinates: [0, 0] },
+  };
+  const glowFC = collection([glow]);
+
+  // Add layers as soon as the style is parsed. render() safely no-ops (optional
+  // chaining on getSource) until the sources exist, so a slow style just delays
+  // the markers rather than throwing.
+  if (map.isStyleLoaded()) {
+    addSourcesAndLayers(map);
+  } else {
+    const onStyle = (): void => {
+      if (!map.isStyleLoaded()) return;
+      map.off('styledata', onStyle);
+      if (!map.getSource('runners-icon')) addSourcesAndLayers(map);
+    };
+    map.on('styledata', onStyle);
+  }
 
   const positions = new Map<string, LngLat>();
   let selected: string | null = null;
@@ -127,6 +148,20 @@ export function createEngine(map: MlMap, data: ReplayData): EngineHandle {
       v.trail.properties!.opacity = 0.55 * dim * e;
     }
 
+    // Winner halo: a gentle pulse on the winner's marker once they've finished.
+    if (winner && winner.actualFinishMs !== null && raceMs >= winner.actualFinishMs) {
+      const pos = positions.get(winner.id);
+      if (pos) {
+        const pulse = 0.5 + 0.5 * Math.sin(performance.now() / 380);
+        (glow.geometry as Point).coordinates = pos;
+        glow.properties!.r = 16 + 5 * pulse;
+        glow.properties!.opacity = 0.18 + 0.12 * pulse;
+      }
+    } else {
+      glow.properties!.opacity = 0;
+    }
+
+    (map.getSource('runners-glow') as GeoJSONSource | undefined)?.setData(glowFC);
     (map.getSource('runners-trail') as GeoJSONSource | undefined)?.setData(trailFC);
     (map.getSource('runners-ghost') as GeoJSONSource | undefined)?.setData(ghostFC);
     (map.getSource('runners-icon') as GeoJSONSource | undefined)?.setData(iconFC);
@@ -154,9 +189,23 @@ function collection<T extends Feature>(features: T[]): FeatureCollection {
 
 function addSourcesAndLayers(map: MlMap): void {
   const empty: FeatureCollection = { type: 'FeatureCollection', features: [] };
+  map.addSource('runners-glow', { type: 'geojson', data: empty });
   map.addSource('runners-trail', { type: 'geojson', data: empty });
   map.addSource('runners-ghost', { type: 'geojson', data: empty });
   map.addSource('runners-icon', { type: 'geojson', data: empty });
+
+  // Winner halo sits beneath everything else.
+  map.addLayer({
+    id: 'runners-glow',
+    type: 'circle',
+    source: 'runners-glow',
+    paint: {
+      'circle-color': ['get', 'color'],
+      'circle-radius': ['get', 'r'],
+      'circle-opacity': ['get', 'opacity'],
+      'circle-blur': 1,
+    },
+  });
 
   map.addLayer({
     id: 'runners-trail',

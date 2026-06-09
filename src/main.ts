@@ -8,6 +8,7 @@ import { createEngine } from './engine';
 import { createLeaderboard } from './leaderboard';
 import { createLayout } from './layout';
 import { createGapChart } from './gapchart';
+import { finalWinnerId } from './standings';
 import { formatDelta } from './geo';
 import type { ReplayData } from './types';
 
@@ -44,6 +45,15 @@ async function main(): Promise<void> {
   const clock = new Clock({ durationMs: data.race.durationMs });
   const frames: FrameFn[] = [];
 
+  // Idle-frame gating: do per-frame work only when time is actually moving, the
+  // view is mid-transition (entrance, selection), or we're at the finish (the
+  // winner halo keeps pulsing). Saves battery when paused mid-replay.
+  let lastT = -1;
+  let dirtyUntil = performance.now() + 1300; // covers the entrance stagger
+  const markDirty = (ms = 700): void => {
+    dirtyUntil = Math.max(dirtyUntil, performance.now() + ms);
+  };
+
   const transport = createTransport(
     document.getElementById('transport') as HTMLElement,
     clock,
@@ -53,7 +63,10 @@ async function main(): Promise<void> {
 
   function loop(): void {
     const t = clock.tick();
-    for (const f of frames) f(t);
+    if (t !== lastT || performance.now() < dirtyUntil || clock.atEnd) {
+      lastT = t;
+      for (const f of frames) f(t);
+    }
     requestAnimationFrame(loop);
   }
   requestAnimationFrame(loop);
@@ -61,7 +74,8 @@ async function main(): Promise<void> {
   // The engine needs the style loaded before it can add its layers.
   await handle.whenReady;
 
-  const engine = createEngine(handle.map, data);
+  const winnerId = finalWinnerId(data.runners);
+  const engine = createEngine(handle.map, data, winnerId);
   frames.push((t) => engine.render(t));
 
   // --- selection + on-map label (U6) -------------------------------------
@@ -96,8 +110,27 @@ async function main(): Promise<void> {
   const gapChart = createGapChart(gapEl, data, clock);
   frames.push((t) => gapChart.update(t));
 
+  // --- winner reveal (U8) ------------------------------------------------
+  const winnerEl = document.getElementById('winner') as HTMLElement;
+  let revealed = false;
+  frames.push((t) => {
+    if (!winnerId) return;
+    const w = runnersById.get(winnerId)!;
+    const done = w.actualFinishMs !== null && t >= w.actualFinishMs && clock.atEnd;
+    if (done && !revealed) {
+      revealed = true;
+      winnerEl.style.setProperty('--w-color', w.color);
+      winnerEl.innerHTML = `<span class="w-trophy">🏆</span><span class="w-text"><b>${w.name}</b> wins the Cup <em>${formatDelta(w.deltaMs)}</em></span>`;
+      winnerEl.hidden = false;
+    } else if (!done && revealed) {
+      revealed = false;
+      winnerEl.hidden = true;
+    }
+  });
+
   function setSelection(id: string | null): void {
     selectedId = id;
+    markDirty(700); // let the dim / label transition play out
     engine.setSelected(id);
     leaderboard.setSelected(id);
     gapChart.setSelected(id);
