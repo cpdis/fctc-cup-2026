@@ -94,3 +94,7 @@
 ### Gap chart pass (38f6e41)
 - Tinted halves, on-half labels with axis range, playhead dots per runner,
   centred (max-width 920px) on wide displays.
+
+### Runner figures (4830e07)
+- Stick-figure DOM markers w/ coloured heads replace icon dots; engine renders
+  ghosts+trails only; gap chart viewport-centred at >=1280px.
