@@ -1,5 +1,39 @@
 # FCTC Cup — planning notes
 
+## Session Update - 2026-06-10 (afternoon: themes + basemap + bug fixes)
+
+### What Was Done (commit d3db4a5)
+- **Fixed runners never appearing**: engine gated layer-add on `isStyleLoaded()`,
+  which can stay false forever after the last `styledata` event → marker sources
+  never added, `setData` no-oped silently. Now adds eagerly with an idempotent
+  `styledata` retry; `main.ts` marks frames dirty after style load so the paused
+  t=0 frame paints.
+- **Fixed locked camera** (no zoom-out, no sideways pan, start line clipped):
+  `maxBounds` (+25%) was smaller than a wide viewport's fitted view, forcing
+  MapLibre to zoom IN. Now +125%, with asymmetric fit padding clearing the
+  panel/gap chart/sheet.
+- **Light mode + theme toggle**: `src/theme.ts` store (saved > OS pref), masthead
+  toggle, tokenized CSS palettes, per-theme basemap, no-flash inline script.
+  Theme switch = `setStyle`; route + runner layers re-add themselves.
+- **Owned basemap**: `public/basemap.pmtiles` (3.4 MB, committed) extracted via
+  `pmtiles` CLI (brew) from the 2026-06-09 Protomaps daily build, bbox = roaming
+  area. On by default (committed `.env`). Migrated to `@protomaps/basemaps`.
+- Verified interactively via Claude in Chrome (localhost blocked in the
+  extension — use the LAN URL) + puppeteer captures in `review/index.html`
+  (headless works fine WITHOUT the swiftshader args).
+- Docs updated (README basemap/themes, extract-basemap.md).
+
+### Current State
+- typecheck clean, 60/60 tests, build OK. Both themes verified desktop + mobile,
+  winner reveal verified. Dev server on :5173 (`--host`).
+- `planning/pmtiles` is a stray 55 MB CLI binary (now gitignored) — Colin to delete.
+
+### Next Steps
+- [ ] Create GitHub repo + push; optional `/code-review` pass.
+- [ ] Deploy to Vercel, point `fctc.fun` DNS, enable Firewall bot protection.
+- [ ] Consider muting the stock Protomaps light flavour (cyan water is loud).
+- [ ] Race morning: real GPX + roster + `npm run build` + deploy.
+
 ## Session Update - 2026-06-10
 
 ### What Was Done
