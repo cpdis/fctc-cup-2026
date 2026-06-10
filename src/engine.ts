@@ -86,19 +86,23 @@ export function createEngine(map: MlMap, data: ReplayData, winnerId?: string | n
   };
   const glowFC = collection([glow]);
 
-  // Add layers as soon as the style is parsed. render() safely no-ops (optional
-  // chaining on getSource) until the sources exist, so a slow style just delays
-  // the markers rather than throwing.
-  if (map.isStyleLoaded()) {
-    addSourcesAndLayers(map);
-  } else {
-    const onStyle = (): void => {
-      if (!map.isStyleLoaded()) return;
-      map.off('styledata', onStyle);
-      if (!map.getSource('runners-icon')) addSourcesAndLayers(map);
-    };
-    map.on('styledata', onStyle);
-  }
+  // Add layers as soon as the style is parsed. Don't gate on isStyleLoaded():
+  // it stays false while sprites/tiles trickle in, and styledata never re-fires
+  // after the last style mutation — so waiting for it can mean waiting forever.
+  // Instead just try (createEngine runs after the style parses), and keep an
+  // idempotent retry on styledata, which also restores the layers after a
+  // setStyle (basemap/theme switch) wipes them. render() safely no-ops
+  // (optional chaining on getSource) until the sources exist.
+  const ensureLayers = (): void => {
+    if (map.getSource('runners-icon')) return;
+    try {
+      addSourcesAndLayers(map);
+    } catch {
+      /* style not parsed yet; the styledata listener retries */
+    }
+  };
+  ensureLayers();
+  map.on('styledata', ensureLayers);
 
   const positions = new Map<string, LngLat>();
   let selected: string | null = null;

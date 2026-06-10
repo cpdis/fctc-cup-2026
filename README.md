@@ -63,8 +63,8 @@ npm run bake        # parse GPX + roster -> public/replay.json
 npm run dev         # http://localhost:5173
 ```
 
-`npm run dev` uses OpenFreeMap's hosted dark style so it runs with zero setup.
-For the production basemap, see **Basemap** below.
+The basemap (a committed PMTiles extract) and a light/dark theme toggle work
+out of the box — see **Basemap** below.
 
 Other scripts:
 
@@ -101,14 +101,17 @@ the build.
 
 ## Basemap
 
-The production basemap is a **self-hosted Protomaps PMTiles** extract of just the
-lake bounding box — one static file, no API key, no rate limit, no third-party
-runtime dependency. See [`scripts/extract-basemap.md`](scripts/extract-basemap.md)
-to produce `public/basemap.pmtiles`, then set `VITE_USE_PMTILES=true`.
+The basemap is a **self-hosted Protomaps PMTiles** extract around the lake —
+one static file (`public/basemap.pmtiles`, ~3.5 MB, committed), no API key, no
+rate limit, no third-party runtime dependency. It's styled per theme with
+`@protomaps/basemaps` flavours; the masthead toggle (and the OS preference)
+switches light/dark. See
+[`scripts/extract-basemap.md`](scripts/extract-basemap.md) to refresh the
+extract.
 
-Without it, dev and prod fall back to OpenFreeMap's hosted dark style (keyless).
-`VITE_FLAT_BASEMAP=true` uses a flat inline background (offline / deterministic
-screenshots).
+Setting `VITE_USE_PMTILES=false` in `.env.local` falls back to OpenFreeMap's
+hosted styles (keyless): `dark` and `positron`. `VITE_FLAT_BASEMAP=true` uses a
+flat inline background (offline / deterministic screenshots).
 
 ## Deploy
 
@@ -142,12 +145,12 @@ data/            roster, per-runner GPX, finish-only fallbacks (race-day inputs)
 scripts/         build-time: GPX parse, route LUT, map-matching, bake, seed-demo
 src/             runtime: map, clock, engine, transport, leaderboard, gapchart, layout
 tests/           Vitest specs (geo, route, match, clock, standings, engine, …)
-public/          baked replay.json + basemap.pmtiles (generated)
+public/          basemap.pmtiles (committed) + baked replay.json (generated)
 docs/            brainstorm + plan
 ```
 
 ## Tech
 
 Vite + vanilla TypeScript · MapLibre GL JS · Turf.js · `@tmcw/togeojson` ·
-Protomaps PMTiles · Vitest. No framework on the 60 fps path — the map and
+Protomaps PMTiles + `@protomaps/basemaps` · Vitest. No framework on the 60 fps path — the map and
 animation layer are deliberately imperative.

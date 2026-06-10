@@ -1,53 +1,49 @@
 # Owned basemap: Protomaps PMTiles extract
 
-The production basemap is a self-hosted PMTiles extract of **just the Herdsman
-Lake bounding box** (KTD3). It ships as one static file, `public/basemap.pmtiles`,
-with no API key, no rate limit, and no third-party runtime dependency. Dev runs
-fine without it (it falls back to OpenFreeMap's hosted dark style), so this is a
-one-time setup you do well before race day.
+The production basemap is a self-hosted PMTiles extract around **Herdsman
+Lake** (KTD3). It ships as one static file, `public/basemap.pmtiles` (~3.5 MB,
+committed), with no API key, no rate limit, and no third-party runtime
+dependency. It styles in both themes via `@protomaps/basemaps` flavours
+(`light` / `dark`) in `src/map.ts`.
 
 ## Bounding box
 
-From the canonical route (`Inaugural_FCTC_.gpx`), padded a little:
+The extract covers the map's full roaming area (route bounds padded 1.25× —
+keep in sync with `maxBounds` in `src/map.ts`), so panning never hits blank
+tiles:
 
 ```
-west  115.790   south -31.935
-east  115.821   north -31.905
+west  115.770   south -31.956
+east  115.841   north -31.884
 ```
 
-## Steps
+## Steps (refresh whenever you want newer OSM data)
 
-1. **Install the `pmtiles` CLI** (Go binary):
-   https://github.com/protomaps/go-pmtiles/releases — or `brew install pmtiles`.
+1. **Install the `pmtiles` CLI**: `brew install pmtiles` (or
+   https://github.com/protomaps/go-pmtiles/releases).
 
-2. **Extract the bbox** from the Protomaps daily build straight into the repo:
+2. **Extract the bbox** from the Protomaps daily build straight into the repo
+   (use the most recent date that returns a build — probe
+   `https://build.protomaps.com/YYYYMMDD.pmtiles`):
 
    ```bash
    pmtiles extract \
-     https://build.protomaps.com/20240101.pmtiles \
+     https://build.protomaps.com/20260609.pmtiles \
      public/basemap.pmtiles \
-     --bbox=115.790,-31.935,115.821,-31.905 \
+     --bbox=115.770,-31.956,115.841,-31.884 \
      --maxzoom=16
    ```
 
-   (Use the most recent daily build date available. Maxzoom 16 is plenty for a
-   2 km view; the file should land well under ~5 MB.)
+   (The daily builds top out at z15; MapLibre overzooms past that, which is
+   plenty for a 2 km view.)
 
-3. **Turn it on:** create `.env.local` with
+3. **It's on by default**: `.env` sets `VITE_USE_PMTILES=true`. To use the
+   hosted fallback instead, set `VITE_USE_PMTILES=false` in `.env.local`.
 
-   ```
-   VITE_USE_PMTILES=true
-   ```
-
-   `npm run dev` / `npm run build` now read the local PMTiles and style it with
-   `protomaps-themes-base` (dark theme). Tune the theme in `src/map.ts`.
-
-4. **Verify** the lake renders muted and dark, attribution is intact
-   (OpenStreetMap · Protomaps), and the file is committed-or-deployed alongside
-   `dist/`.
+4. **Verify** both themes render (toggle in the masthead), attribution is
+   intact (OpenStreetMap · Protomaps), and commit the refreshed file.
 
 ## Fallback
 
-If the extract step is ever a problem, leave `VITE_USE_PMTILES` unset and the app
-uses OpenFreeMap's hosted `dark` style (keyless). MapTiler's free tier
-(`Dataviz Dark`, needs a domain-restricted key) is the prettier hosted option.
+With `VITE_USE_PMTILES=false` the app uses OpenFreeMap's hosted styles
+(keyless): `dark` for the dark theme, `positron` for light.

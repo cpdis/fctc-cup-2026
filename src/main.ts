@@ -10,6 +10,7 @@ import { createLayout } from './layout';
 import { createGapChart } from './gapchart';
 import { finalWinnerId } from './standings';
 import { formatDelta } from './geo';
+import { toggleTheme, onThemeChange } from './theme';
 import type { ReplayData } from './types';
 
 /** Subsystems that need a per-frame tick (transport, engine, gap chart…). */
@@ -54,6 +55,12 @@ async function main(): Promise<void> {
     dirtyUntil = Math.max(dirtyUntil, performance.now() + ms);
   };
 
+  // Theme toggle: CSS swaps instantly via data-theme; the map swaps styles and
+  // the route/runner layers re-add themselves — keep frames hot while the new
+  // style settles so the re-added (empty) sources get repainted even if paused.
+  document.getElementById('theme-toggle')?.addEventListener('click', toggleTheme);
+  onThemeChange(() => markDirty(8000));
+
   const transport = createTransport(
     document.getElementById('transport') as HTMLElement,
     clock,
@@ -77,6 +84,9 @@ async function main(): Promise<void> {
   const winnerId = finalWinnerId(data.runners);
   const engine = createEngine(handle.map, data, winnerId);
   frames.push((t) => engine.render(t));
+  // The style load can outlast the boot dirty window; without this the engine
+  // never paints its first (paused, t=0) frame and the start line looks empty.
+  markDirty(1600); // covers the staggered entrance
 
   // --- selection + on-map label (U6) -------------------------------------
   const runnersById = new Map(data.runners.map((r) => [r.id, r]));

@@ -11,6 +11,18 @@
       name="description"
       content="The FCTC Cup: watch every runner race their own predicted time around Herdsman Lake."
     />
+    <!-- Set the theme before first paint so there's no flash of the wrong one.
+         src/theme.ts re-derives the same value for the runtime. -->
+    <script>
+      try {
+        var t = localStorage.getItem('fctc-theme');
+        if (t !== 'light' && t !== 'dark')
+          t = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+        document.documentElement.dataset.theme = t;
+      } catch (e) {}
+    </script>
+    <meta name="theme-color" content="#0a0e14" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#f5f3ee" media="(prefers-color-scheme: light)" />
     <link rel="preconnect" href="https://tiles.openfreemap.org" crossorigin />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -27,6 +39,7 @@
       <header id="masthead">
         <span class="masthead-mark">FCTC&nbsp;CUP</span>
         <span class="masthead-sub">Herdsman&nbsp;Lake</span>
+        <button id="theme-toggle" type="button" aria-label="Toggle light or dark theme"></button>
       </header>
 
       <!-- Leaderboard: side panel on desktop, bottom sheet on mobile (U6) -->
