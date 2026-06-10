@@ -1,5 +1,25 @@
 # FCTC Cup — planning notes
 
+## Session Update - 2026-06-10 (later: perf + camera + finish UX, commit bcfca93)
+
+### What Was Done
+- **Killed the CPU burn** (fans at 100%/tab): the frame gate's `clock.atEnd` term
+  kept full 60fps rendering forever once the race ended, just to pulse the winner
+  halo. Halo is now a CSS-animated DOM marker; parked replay = 0 map renders
+  (measured). Also merged icon+ghost into one source (2 setData/frame, was 4).
+- **Auto camera** (`src/camera.ts`): eases toward a padded bbox of the pack each
+  hot frame — tight at the start, wide as separation grows. Ground-span clamp
+  (~800 m min), not zoom clamp. Gestures disarm; masthead crosshair re-arms.
+- **Finish corral + pops**: finishers park in a row beside the line
+  (`corralSlots`, pure + tested), ghosts fade once done, name+delta chip floats
+  up per finish. Gotcha: animate marker INNER children — animating the marker
+  element overrides MapLibre's inline positioning transform (chip pinned at 0,0).
+- **Winner card** centered + bigger with canvas-confetti (reduced-motion safe).
+  Desktop panel now max-height (hugs rows). 64 tests green.
+
+### Next Steps (unchanged)
+- GitHub repo + push, Vercel deploy + fctc.fun DNS, mute light flavour maybe.
+
 ## Session Update - 2026-06-10 (afternoon: themes + basemap + bug fixes)
 
 ### What Was Done (commit d3db4a5)
