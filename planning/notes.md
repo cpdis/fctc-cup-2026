@@ -108,3 +108,7 @@
   extended with /cup -> fctc-cup-2026.vercel.app (source versioned in
   scripts/fctc-proxy-worker.js). Verified live; dashboard/wrapped/Framer intact.
 - TODO: enable Vercel Firewall bot protection on fctc-cup-2026 (manual).
+
+### Mobile polish (9477c0a)
+- Peek chip rail (names + deltas over the map), safe-area top fade,
+  theme-color follows toggle, transport/sheet overlap fixed.
