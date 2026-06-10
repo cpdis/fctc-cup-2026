@@ -1,5 +1,53 @@
 # FCTC Cup — planning notes
 
+## Session Update - 2026-06-10 (PARKED — end of day)
+
+### What Was Done
+- Full iteration day on top of yesterday's build, all live at **fctc.fun/cup**:
+  - Fixed hidden runners (engine layer-add gated on `isStyleLoaded()`) and the
+    locked camera (`maxBounds` +25% → +125% with chrome-aware fit padding).
+  - Light/dark themes (`src/theme.ts`, masthead toggle, no-flash, theme-color
+    sync), self-hosted PMTiles basemap (committed, both flavours,
+    `@protomaps/basemaps`).
+  - Perf: parked replay now does ZERO map renders (halo = CSS DOM marker,
+    `clock.atEnd` removed from frame gate); ghosts+trails = 2 setData/frame.
+  - Auto-follow camera (`src/camera.ts`): tight on the start pack, widens with
+    separation, gesture disarms, masthead crosshair re-arms.
+  - Runner figures (`src/figures.ts`): animated stick figures, coloured heads,
+    pace-based cadence, dust kicks, finish corral (2-row crowd) + breathing,
+    winner victory hop; finish pops with per-runner delta chips.
+  - Gap chart legibility (tinted halves, on-half labels, playhead dots) +
+    viewport centring; desktop panel hugs rows.
+  - Mobile: peek chip rail (names+deltas over the map), safe-area top fade,
+    transport/sheet overlap fix.
+  - Shipped: repo cpdis/fctc-cup-2026, Vercel (git-connected), Cloudflare
+    worker `fctc2025-proxy` extended with /cup (source versioned at
+    scripts/fctc-proxy-worker.js).
+- Planned the fctc.fun hub site →
+  `~/Documents/Personal Projects/fctc-site/docs/plans/2026-06-10-001-feat-fctc-hub-site-plan.md`.
+- Cloudflare agent access solved: account-owned token in ~/.bashrc (all
+  zones, DNS:Edit + Workers Routes), verified; wrangler OAuth covers script
+  deploys (use `env -u CLOUDFLARE_API_TOKEN` for wrangler until the token
+  gains Workers Scripts).
+
+### Current State
+- Production: fctc.fun/cup serving demo data (11 runners, Gia wins −0:04).
+  64/64 tests, typecheck + build clean. Everything committed and pushed.
+
+### Next Steps
+- [ ] Enable Bot Protection + AI bot blocking in Vercel Firewall for
+      fctc-cup-2026 (dashboard one-click — past bot incident).
+- [ ] Implement the fctc.fun hub site in a fresh instance (plan is ready;
+      open the fctc-site folder and start from the plan doc).
+- [ ] Race morning: real GPX into data/tracks/<id>.gpx, predictions into
+      data/roster.json, fallbacks, `npm run build`, push.
+- [ ] Optional: /code-review pass on the cup repo; delete stray
+      planning/pmtiles binary (55 MB, gitignored).
+
+### Blockers / Open Questions
+- None blocking. Hub-site open questions live in its plan doc (stack veto,
+  canonical fonts, analytics, Framer imagery check).
+
 ## Session Update - 2026-06-10 (later: perf + camera + finish UX, commit bcfca93)
 
 ### What Was Done
