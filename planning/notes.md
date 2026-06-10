@@ -98,3 +98,6 @@
 ### Runner figures (4830e07)
 - Stick-figure DOM markers w/ coloured heads replace icon dots; engine renders
   ghosts+trails only; gap chart viewport-centred at >=1280px.
+
+### Whimsy pass (8c927a2)
+- Pace cadence, dust kicks, corral crowd + breathing, winner victory hop.
