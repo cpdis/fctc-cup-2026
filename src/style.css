@@ -699,7 +699,7 @@ body {
   display: none;
 }
 
-/* Desktop: wide strip above the transport, left of the panel */
+/* Desktop: strip above the transport, centred in the space left of the panel */
 @media (min-width: 901px) {
   #gapchart {
     position: absolute;
@@ -707,6 +707,8 @@ body {
     right: 328px;
     bottom: 80px;
     height: 132px;
+    max-width: 920px;
+    margin-inline: auto;
     border-radius: 14px;
     padding: 8px 12px 4px;
   }
@@ -714,7 +716,7 @@ body {
 
 /* Mobile: docked at the top of the bottom sheet */
 #gapchart.in-sheet {
-  position: static;
+  position: relative; /* anchors the overlay labels */
   flex: 0 0 auto;
   height: 118px;
   margin: 0 8px 4px;
@@ -728,10 +730,19 @@ body {
   min-height: 0;
 }
 .gc-center {
-  stroke: var(--line);
+  stroke: var(--ink-faint);
   stroke-width: 1;
   stroke-dasharray: 4 4;
   vector-effect: non-scaling-stroke;
+}
+/* Tinted halves: above the centerline = ahead, below = behind */
+.gc-zone-ahead {
+  fill: var(--early);
+  opacity: 0.07;
+}
+.gc-zone-behind {
+  fill: var(--late);
+  opacity: 0.07;
 }
 .gc-line {
   stroke-width: 1.5;
@@ -746,11 +757,45 @@ body {
   opacity: 0.7;
   vector-effect: non-scaling-stroke;
 }
-#gapchart[data-sel]:not([data-sel='']) .gc-line:not(.sel) {
+#gapchart[data-sel]:not([data-sel='']) .gc-line:not(.sel),
+#gapchart[data-sel]:not([data-sel='']) .gc-dot:not(.sel) {
   opacity: var(--dim);
 }
 .gc-line.sel {
   stroke-width: 3;
+}
+
+/* Live per-runner dot at the playhead (zero-length round-capped line) */
+.gc-dot {
+  stroke-width: 6.5;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+  transition: opacity var(--dur-ui) var(--ease-out);
+}
+.gc-dot.sel {
+  stroke-width: 9;
+}
+
+/* In-chart labels, placed on the halves they describe */
+.gc-lab {
+  position: absolute;
+  left: 12px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--glass);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  pointer-events: none;
+}
+.gc-lab-ahead {
+  top: 9px;
+  color: var(--early);
+}
+.gc-lab-behind {
+  bottom: 24px;
+  color: var(--late);
 }
 
 /* Runner colours are baked for the dark map; darken them a touch so thin
@@ -763,19 +808,13 @@ body {
 .gc-axis {
   flex: 0 0 auto;
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
   font-family: var(--font-mono);
   font-size: 9px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--ink-faint);
   padding-top: 2px;
-}
-.gc-ahead {
-  color: var(--early);
-}
-.gc-behind {
-  color: var(--late);
 }
 
 @media (prefers-reduced-motion: reduce) {

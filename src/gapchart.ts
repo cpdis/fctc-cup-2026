@@ -10,6 +10,7 @@
 import type { Clock } from './clock';
 import type { ReplayData, Runner } from './types';
 import { iconProgressAt } from './engine';
+import { formatClock } from './geo';
 
 const NS = 'http://www.w3.org/2000/svg';
 const VW = 1000; // viewBox width (aspect handled by CSS)
@@ -68,9 +69,11 @@ export function createGapChart(
   svg.setAttribute('preserveAspectRatio', 'none');
   svg.classList.add('gc-svg');
 
-  // centerline + ahead/behind labels
-  const center = line(0, VH / 2, VW, VH / 2, 'gc-center');
-  svg.appendChild(center);
+  // Tinted halves make the geometry legible at a glance: above the dashed
+  // line = beating your prediction, below = giving time back.
+  svg.appendChild(rect(0, 0, VW, VH / 2, 'gc-zone-ahead'));
+  svg.appendChild(rect(0, VH / 2, VW, VH / 2, 'gc-zone-behind'));
+  svg.appendChild(line(0, VH / 2, VW, VH / 2, 'gc-center'));
 
   const polys = new Map<string, SVGPolylineElement>();
   for (const { r, pts } of series) {
@@ -89,11 +92,35 @@ export function createGapChart(
 
   const playhead = line(0, 0, 0, VH, 'gc-playhead');
   svg.appendChild(playhead);
+
+  // A live dot per runner riding its line at the playhead — the same colours
+  // as the map markers, so chart lines and runners read as one thing. Drawn as
+  // zero-length round-capped lines: with preserveAspectRatio:none a <circle>
+  // would stretch into an ellipse, but non-scaling-stroke caps stay round.
+  const dots = new Map<string, SVGLineElement>();
+  for (const { r } of series) {
+    const dot = line(0, y(0), 0, y(0), 'gc-dot');
+    dot.setAttribute('stroke', r.color);
+    dots.set(r.id, dot);
+    svg.appendChild(dot);
+  }
   container.appendChild(svg);
+
+  // Labels live in HTML (text inside the stretched SVG would distort) and sit
+  // where their halves actually are: ahead at the top, behind at the bottom,
+  // each with the value of the axis extreme.
+  const range = formatClock(maxAbs * 1000);
+  const labAhead = document.createElement('div');
+  labAhead.className = 'gc-lab gc-lab-ahead';
+  labAhead.textContent = `▲ ahead +${range}`;
+  const labBehind = document.createElement('div');
+  labBehind.className = 'gc-lab gc-lab-behind';
+  labBehind.textContent = `▼ behind −${range}`;
+  container.append(labAhead, labBehind);
 
   const axis = document.createElement('div');
   axis.className = 'gc-axis';
-  axis.innerHTML = `<span class="gc-ahead">ahead</span><span class="gc-mid">vs prediction</span><span class="gc-behind">behind</span>`;
+  axis.innerHTML = `<span class="gc-mid">gap to predicted finish</span>`;
   container.appendChild(axis);
 
   // --- scrub by dragging the chart ---------------------------------------
@@ -118,15 +145,27 @@ export function createGapChart(
 
   return {
     update(raceMs: number): void {
-      const px = x(raceMs);
-      playhead.setAttribute('x1', String(px));
-      playhead.setAttribute('x2', String(px));
+      const px = String(x(raceMs));
+      playhead.setAttribute('x1', px);
+      playhead.setAttribute('x2', px);
+      for (const { r } of series) {
+        const dot = dots.get(r.id)!;
+        const py = String(y(gapSecAt(r, raceMs, L)));
+        dot.setAttribute('x1', px);
+        dot.setAttribute('x2', px);
+        dot.setAttribute('y1', py);
+        dot.setAttribute('y2', py);
+      }
     },
     setSelected(id: string | null): void {
       container.dataset.sel = id ?? '';
       for (const [rid, poly] of polys) poly.classList.toggle('sel', rid === id);
-      // Raise the selected line above the others.
-      if (id && polys.has(id)) svg.appendChild(polys.get(id)!);
+      for (const [rid, dot] of dots) dot.classList.toggle('sel', rid === id);
+      // Raise the selected line (and its dot) above the others.
+      if (id && polys.has(id)) {
+        svg.appendChild(polys.get(id)!);
+        svg.appendChild(dots.get(id)!);
+      }
     },
   };
 }
@@ -139,4 +178,14 @@ function line(x1: number, y1: number, x2: number, y2: number, cls: string): SVGL
   l.setAttribute('y2', String(y2));
   l.classList.add(cls);
   return l;
+}
+
+function rect(x: number, y: number, w: number, h: number, cls: string): SVGRectElement {
+  const r = document.createElementNS(NS, 'rect');
+  r.setAttribute('x', String(x));
+  r.setAttribute('y', String(y));
+  r.setAttribute('width', String(w));
+  r.setAttribute('height', String(h));
+  r.classList.add(cls);
+  return r;
 }
