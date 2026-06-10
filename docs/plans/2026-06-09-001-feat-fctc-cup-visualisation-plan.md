@@ -1,7 +1,7 @@
 ---
 title: "feat: FCTC Cup 2026 race-replay visualisation"
 type: feat
-status: active
+status: completed
 date: 2026-06-09
 origin: docs/brainstorms/2026-06-09-fctc-cup-visualisation-requirements.md
 ---

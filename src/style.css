@@ -1,0 +1,1147 @@
+/* FCTC Cup — base styles + motion tokens.
+   Component styles (panel, transport, gap chart) are layered in by later units.
+   Motion tokens are the single source of cohesion (see plan: Motion & Interaction
+   Design). Every easing/duration/dim value in the app comes from here. */
+
+:root {
+  /* Easing */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1); /* enter/exit, UI feedback */
+  --ease-move: cubic-bezier(0.77, 0, 0.175, 1); /* on-screen movement (re-sort) */
+  --ease-sheet: cubic-bezier(0.32, 0.72, 0, 1); /* mobile drawer */
+
+  /* Durations */
+  --dur-press: 140ms;
+  --dur-ui: 180ms;
+  --dur-move: 220ms;
+  --dur-sheet: 320ms;
+
+  /* Non-selected (dimmed) opacity — shared across map / leaderboard / gap chart */
+  --dim: 0.3;
+
+  /* Palette — athletic, precise, dark (default). Light overrides below. */
+  color-scheme: dark;
+  --bg: #0a0e14;
+  --bg-elev: #121822;
+  --bg-elev-2: #18202c;
+  --line: #2a3441;
+  --ink: #e8edf4;
+  --ink-dim: #8b97a7;
+  --ink-faint: #5a6675;
+  --accent: #ffd23f; /* FCTC gold — the Cup (fills, always with dark ink on top) */
+  --accent-ink: #ffd23f; /* gold as text — darkened on light bg for contrast */
+  --early: #3fe0a0;
+  --late: #ff8e6b;
+
+  /* Surfaces over the map */
+  --glass: rgba(18, 24, 34, 0.92); /* panel, gap chart, winner card */
+  --glass-deep: rgba(10, 14, 20, 0.86); /* runner label, attribution */
+  --fade: 10, 14, 20; /* rgb triplet for the transport gradient */
+  --halo: rgba(10, 14, 20, 0.8); /* playhead ring */
+  --hover: rgba(255, 255, 255, 0.04);
+  --winner-row: rgba(255, 210, 63, 0.1);
+  /* Layered halo so the wordmark stays legible over basemap place labels */
+  --mast-shadow: 0 0 3px rgba(5, 7, 11, 0.9), 0 0 8px rgba(5, 7, 11, 0.9),
+    0 1px 14px rgba(5, 7, 11, 0.8);
+
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+
+  --font-display: 'Space Grotesk', 'Helvetica Neue', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  --font-ui: system-ui, -apple-system, 'Helvetica Neue', sans-serif;
+}
+
+/* Light theme — warm paper under the positron/light basemap. */
+:root[data-theme='light'] {
+  color-scheme: light;
+  --bg: #f5f3ee;
+  --bg-elev: #ffffff;
+  --bg-elev-2: #e9e6de;
+  --line: #d6d2c6;
+  --ink: #161b26;
+  --ink-dim: #5d6a7a;
+  --ink-faint: #98a0ae;
+  --accent-ink: #8f6c00;
+  --early: #0a8c5c;
+  --late: #cc4f24;
+
+  --glass: rgba(255, 255, 255, 0.92);
+  --glass-deep: rgba(255, 255, 255, 0.9);
+  --fade: 245, 243, 238;
+  --halo: rgba(255, 255, 255, 0.85);
+  --hover: rgba(0, 0, 0, 0.05);
+  --winner-row: rgba(180, 140, 0, 0.12);
+  --mast-shadow: 0 0 3px rgba(255, 255, 255, 0.95), 0 0 8px rgba(255, 255, 255, 0.95),
+    0 1px 14px rgba(255, 255, 255, 0.9);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior: none;
+}
+
+#app {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+}
+
+#map {
+  position: absolute;
+  inset: 0;
+}
+
+/* MapLibre attribution — keep it, just tone it down */
+.maplibregl-ctrl-attrib {
+  font-size: 10px;
+  background: var(--glass-deep) !important;
+}
+.maplibregl-ctrl-attrib a {
+  color: var(--ink-faint);
+}
+
+/* Masthead */
+#masthead {
+  position: absolute;
+  top: calc(12px + var(--safe-top));
+  left: 16px;
+  z-index: 5;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  pointer-events: none;
+  text-shadow: var(--mast-shadow);
+}
+.masthead-mark {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  font-size: 20px;
+  color: var(--ink);
+}
+.masthead-sub {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--accent-ink);
+}
+
+/* Theme toggle — lives in the masthead, which is pointer-events: none */
+#theme-toggle {
+  pointer-events: auto;
+  width: 30px;
+  height: 30px;
+  margin-left: 4px;
+  align-self: center;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--glass);
+  color: var(--ink-dim);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  transition: color var(--dur-ui) var(--ease-out), transform var(--dur-press) var(--ease-out);
+}
+#theme-toggle:hover {
+  color: var(--ink);
+}
+#theme-toggle:active {
+  transform: scale(0.92);
+}
+#theme-toggle::before {
+  content: '☾';
+}
+:root[data-theme='light'] #theme-toggle::before {
+  content: '☀';
+}
+
+/* Auto-camera toggle — same family as the theme toggle */
+#cam-toggle {
+  pointer-events: auto;
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  align-self: center;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--glass);
+  color: var(--ink-faint);
+  cursor: pointer;
+  transition: color var(--dur-ui) var(--ease-out), transform var(--dur-press) var(--ease-out);
+}
+#cam-toggle:active {
+  transform: scale(0.92);
+}
+#cam-toggle.active {
+  color: var(--accent-ink);
+  border-color: var(--accent-ink);
+}
+
+/* Boot / error */
+#boot {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  z-index: 50;
+  background: var(--bg);
+  color: var(--ink-dim);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  transition: opacity var(--dur-ui) var(--ease-out);
+}
+#boot[hidden] {
+  display: grid; /* keep in flow for the fade */
+  opacity: 0;
+  pointer-events: none;
+}
+#boot[data-error='true'] {
+  color: #ff6b6b;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #boot {
+    transition-duration: 1ms;
+  }
+}
+
+/* ── Transport (U4) ───────────────────────────────────────────────────── */
+#transport {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 16px calc(12px + var(--safe-bottom));
+  background: linear-gradient(to top, rgba(var(--fade), 0.92), rgba(var(--fade), 0));
+  font-family: var(--font-mono);
+}
+#transport:empty {
+  display: none;
+}
+
+.tp-play {
+  flex: 0 0 auto;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border: none;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #0a0e14;
+  cursor: pointer;
+  transition: transform var(--dur-press) var(--ease-out);
+}
+.tp-play:active {
+  transform: scale(0.92);
+}
+
+.tp-clock {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 6px;
+  font-size: 12px;
+  letter-spacing: 0.03em;
+  min-width: 92px;
+}
+.tp-now {
+  color: var(--ink);
+}
+.tp-dur {
+  color: var(--ink-faint);
+}
+.tp-dur::before {
+  content: '/ ';
+}
+
+/* Rail */
+.tp-rail {
+  position: relative;
+  flex: 1 1 auto;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+.tp-rail::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--line);
+}
+.tp-fill {
+  position: absolute;
+  left: 0;
+  height: 4px;
+  width: 0;
+  border-radius: 2px;
+  background: var(--accent);
+}
+.tp-playhead {
+  position: absolute;
+  left: 0;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--ink);
+  box-shadow: 0 0 0 3px var(--halo);
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+.tp-ticks {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.tp-tick {
+  position: absolute;
+  top: 50%;
+  width: 2px;
+  height: 12px;
+  padding: 0;
+  border: none;
+  border-radius: 1px;
+  background: var(--ink-faint);
+  transform: translate(-50%, -50%);
+  cursor: pointer;
+  pointer-events: auto;
+}
+.tp-tick.win {
+  background: var(--accent);
+  height: 16px;
+  width: 3px;
+}
+.tp-range {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+/* Speed segmented control with sliding pill */
+.tp-speed {
+  position: relative;
+  flex: 0 0 auto;
+  display: flex;
+  background: var(--bg-elev);
+  border-radius: 8px;
+  padding: 3px;
+  isolation: isolate;
+}
+.tp-speed-pill {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  left: 3px;
+  border-radius: 6px;
+  background: var(--bg-elev-2);
+  z-index: -1;
+  transition: transform var(--dur-ui) var(--ease-out);
+}
+.tp-speed button {
+  width: 40px;
+  height: 30px;
+  border: none;
+  background: none;
+  color: var(--ink-dim);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  cursor: pointer;
+  transition: color var(--dur-ui) var(--ease-out);
+}
+.tp-speed button.active {
+  color: var(--ink);
+}
+
+@media (max-width: 640px) {
+  #transport {
+    gap: 10px;
+    padding: 10px 12px calc(10px + var(--safe-bottom));
+  }
+  .tp-speed button {
+    width: 32px;
+  }
+  .tp-clock {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tp-play,
+  .tp-speed-pill,
+  .tp-speed button {
+    transition-duration: 1ms;
+  }
+}
+
+/* ── Panel + leaderboard (U6) ─────────────────────────────────────────── */
+#panel {
+  position: absolute;
+  z-index: 15;
+  background: var(--glass);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+#panel:empty {
+  display: none;
+}
+
+/* Desktop: docked side panel, sized to its rows (scrolls past the cap) */
+@media (min-width: 901px) {
+  #panel {
+    top: calc(58px + var(--safe-top));
+    right: 16px;
+    width: 296px;
+    max-height: calc(100% - 58px - var(--safe-top) - 100px);
+    border-radius: 14px;
+  }
+  #sheet-handle {
+    display: none;
+  }
+}
+
+/* Mobile: bottom sheet */
+@media (max-width: 900px) {
+  #panel {
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 74vh;
+    border-radius: 18px 18px 0 0;
+    border-bottom: none;
+    will-change: transform;
+    padding-bottom: calc(72px + var(--safe-bottom)); /* clear the transport */
+  }
+}
+
+#sheet-handle {
+  flex: 0 0 auto;
+  height: 26px;
+  border: none;
+  background: none;
+  cursor: grab;
+  position: relative;
+  touch-action: none;
+}
+#sheet-handle::before {
+  content: '';
+  position: absolute;
+  top: 9px;
+  left: 50%;
+  width: 38px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--ink-faint);
+  transform: translateX(-50%);
+}
+
+.sheet-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 14;
+  background: #05070b;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--dur-sheet) var(--ease-sheet);
+}
+@media (min-width: 901px) {
+  .sheet-scrim {
+    display: none;
+  }
+}
+
+#leaderboard {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 6px 8px 10px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.lb-row {
+  display: grid;
+  grid-template-columns: 22px 12px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 10px;
+  border: none;
+  border-radius: 9px;
+  background: none;
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+  transition: opacity var(--dur-ui) var(--ease-out),
+    background var(--dur-ui) var(--ease-out);
+}
+.lb-row:hover {
+  background: var(--hover);
+}
+.lb-rank {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--ink-dim);
+  text-align: center;
+}
+.lb-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+.lb-name {
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.lb-delta {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--ink-dim);
+  font-variant-numeric: tabular-nums;
+}
+.lb-delta[data-sign='early'] {
+  color: var(--early);
+}
+.lb-delta[data-sign='late'] {
+  color: var(--late);
+}
+.lb-delta[data-sign='running'] {
+  color: var(--ink-faint);
+  font-style: italic;
+}
+.lb-row.winner {
+  background: var(--winner-row);
+}
+.lb-row.winner .lb-name {
+  color: var(--accent-ink);
+}
+
+/* Selection: dim everyone but the selected row */
+#leaderboard[data-sel]:not([data-sel='']) .lb-row:not(.selected) {
+  opacity: var(--dim);
+}
+
+/* On-map label for the selected runner */
+.runner-label {
+  --rl-color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 9px;
+  border-radius: 8px;
+  background: var(--glass-deep);
+  border: 1px solid var(--rl-color);
+  font-family: var(--font-ui);
+  font-size: 12px;
+  white-space: nowrap;
+  pointer-events: none;
+  transform-origin: bottom center;
+  animation: label-in var(--dur-ui) var(--ease-out);
+}
+.runner-label .rl-name {
+  font-weight: 700;
+  color: var(--ink);
+}
+.runner-label .rl-delta {
+  font-family: var(--font-mono);
+  color: var(--rl-color);
+  font-variant-numeric: tabular-nums;
+}
+.runner-label .rl-delta:empty {
+  display: none;
+}
+@keyframes label-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(2px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* ── Runner figures ──────────────────────────────────────────────────────
+   Little stick figures on DOM markers (src/figures.ts). The run-cycle swings
+   limbs around a neutral standing pose, so removing the animation (paused
+   clock, finished runner) leaves them standing. All transforms live on inner
+   elements — the marker element's transform belongs to MapLibre. */
+.runner-fig {
+  --fig-color: #fff;
+  --fig-phase: 0ms;
+  --fig-delay: 0ms;
+  cursor: pointer;
+  opacity: 0;
+  transform: scale(0.5);
+  transform-origin: bottom center;
+  transition: opacity 320ms var(--ease-out) var(--fig-delay),
+    transform 320ms var(--ease-out) var(--fig-delay);
+}
+.runner-fig.in {
+  opacity: 1;
+  transform: scale(1);
+}
+.runner-fig.dim {
+  opacity: var(--dim);
+  transition: opacity var(--dur-ui) var(--ease-out), transform var(--dur-ui) var(--ease-out);
+}
+.runner-fig.sel {
+  transform: scale(1.3);
+  transition: opacity var(--dur-ui) var(--ease-out), transform var(--dur-ui) var(--ease-out);
+}
+.runner-fig svg {
+  display: block;
+  overflow: visible;
+}
+.runner-fig.flip svg {
+  transform: scaleX(-1);
+}
+.fig-head {
+  fill: var(--fig-color);
+  stroke: var(--bg);
+  stroke-width: 1.4;
+}
+.fig-limb {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+/* Halo so the dark limbs read against dark map features (and vice versa) */
+.runner-fig svg {
+  filter: drop-shadow(0 0 1.5px var(--bg));
+}
+
+/* Run cycle: forward lean + springy bob with squash-and-stretch + alternating
+   limb swings, all timed by --fig-stride (set per runner from predicted pace —
+   bold predictions scurry, cautious ones lope). transform-box lets the rotation
+   origins use viewBox coordinates (hip 11.4,19 / shoulder 12.2,13). */
+.fig-lean {
+  transform-box: view-box;
+  transform-origin: 12px 16px;
+  transform: rotate(9deg);
+}
+.fig-bob,
+.fig-leg,
+.fig-arm {
+  transform-box: view-box;
+}
+.fig-bob {
+  transform-origin: 12px 28px; /* squash from the feet */
+  animation: fig-bob calc(var(--fig-stride, 0.6s) / 2) ease-in-out infinite;
+  animation-delay: var(--fig-phase);
+}
+.fig-leg {
+  transform-origin: 11.4px 19px;
+}
+.fig-arm {
+  transform-origin: 12.2px 13px;
+}
+.fig-leg-f,
+.fig-arm-b {
+  animation: fig-swing var(--fig-stride, 0.6s) cubic-bezier(0.45, 0, 0.55, 1) infinite;
+  animation-delay: var(--fig-phase);
+}
+.fig-leg-b,
+.fig-arm-f {
+  animation: fig-swing var(--fig-stride, 0.6s) cubic-bezier(0.45, 0, 0.55, 1) infinite;
+  animation-delay: calc(var(--fig-phase) - var(--fig-stride, 0.6s) / 2);
+}
+@keyframes fig-swing {
+  0%,
+  100% {
+    transform: rotate(46deg);
+  }
+  50% {
+    transform: rotate(-42deg);
+  }
+}
+@keyframes fig-bob {
+  0%,
+  100% {
+    transform: translateY(0) scale(1.05, 0.94); /* footfall squash */
+  }
+  50% {
+    transform: translateY(-1.7px) scale(0.98, 1.03); /* airborne stretch */
+  }
+}
+
+/* Dust kicks off the back foot, one puff per footfall. Direction follows the
+   facing flip via --dust-x. */
+.runner-fig {
+  --dust-x: -9px;
+}
+.runner-fig.flip {
+  --dust-x: 9px;
+}
+.fig-dust {
+  position: absolute;
+  bottom: 1px;
+  left: 50%;
+  width: 5px;
+  height: 4px;
+  margin-left: -2px;
+  border-radius: 50%;
+  background: var(--ink-dim);
+  opacity: 0;
+  pointer-events: none;
+  animation: fig-dust calc(var(--fig-stride, 0.6s) / 2) ease-out infinite;
+  animation-delay: var(--fig-phase);
+}
+@keyframes fig-dust {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) scale(0.4);
+  }
+  25% {
+    opacity: 0.45;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--dust-x), -3px) scale(1.1);
+  }
+}
+
+/* Stand still whenever the clock isn't running (finished figures keep their
+   own gentler life below — breathing, victory hops). */
+:root[data-racing='false'] .runner-fig:not(.done) .fig-bob,
+:root[data-racing='false'] .runner-fig:not(.done) .fig-leg,
+:root[data-racing='false'] .runner-fig:not(.done) .fig-arm,
+:root[data-racing='false'] .runner-fig:not(.done) .fig-dust {
+  animation-play-state: paused;
+}
+
+/* Finished: stand upright in the corral, catching your breath */
+.runner-fig.done .fig-leg,
+.runner-fig.done .fig-arm,
+.runner-fig.done .fig-dust {
+  animation: none;
+}
+.runner-fig.done .fig-bob {
+  animation: fig-breathe 2.6s ease-in-out infinite;
+  animation-delay: var(--fig-phase);
+}
+.runner-fig.done .fig-lean {
+  transform: none;
+}
+@keyframes fig-breathe {
+  0%,
+  100% {
+    transform: scale(1, 1);
+  }
+  50% {
+    transform: scale(1.02, 0.985);
+  }
+}
+
+/* The winner jumps for joy, arms up in a V, until someone scrubs time back */
+.runner-fig.winner.done .fig-arm-f {
+  animation: none;
+  transform: rotate(-150deg);
+}
+.runner-fig.winner.done .fig-arm-b {
+  animation: none;
+  transform: rotate(155deg);
+}
+.runner-fig.winner.done svg {
+  animation: fig-victory 0.85s cubic-bezier(0.36, 0, 0.34, 1) infinite;
+  transform-origin: bottom center;
+}
+@keyframes fig-victory {
+  0%,
+  100% {
+    transform: translateY(0) scale(1.04, 0.95);
+  }
+  35%,
+  55% {
+    transform: translateY(-5px) scale(0.98, 1.04);
+  }
+}
+/* Compose the facing flip with the hop (the hop owns the svg transform) */
+.runner-fig.winner.done.flip svg {
+  animation-name: fig-victory-flip;
+}
+@keyframes fig-victory-flip {
+  0%,
+  100% {
+    transform: scaleX(-1) translateY(0) scale(1.04, 0.95);
+  }
+  35%,
+  55% {
+    transform: scaleX(-1) translateY(-5px) scale(0.98, 1.04);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .runner-fig .fig-bob,
+  .runner-fig .fig-leg,
+  .runner-fig .fig-arm,
+  .runner-fig .fig-dust,
+  .runner-fig.winner.done svg {
+    animation: none;
+  }
+}
+
+/* Winner halo: CSS-pulsed DOM marker, so the parked end state costs no JS */
+.winner-halo {
+  --halo-color: #ffd23f;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--halo-color);
+  opacity: 0.3;
+  filter: blur(3px);
+  pointer-events: none;
+  animation: halo-pulse 1.7s ease-in-out infinite;
+}
+@keyframes halo-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.26;
+  }
+  50% {
+    transform: scale(1.45);
+    opacity: 0.48;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .winner-halo {
+    animation: none;
+  }
+}
+
+/* Finish pop: name + delta floats up from the corral as each runner finishes */
+.finish-pop {
+  --fp-color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  border-radius: 7px;
+  background: var(--glass-deep);
+  border: 1px solid var(--fp-color);
+  font-family: var(--font-ui);
+  font-size: 12px;
+  white-space: nowrap;
+  pointer-events: none;
+  animation: pop-float 2.6s var(--ease-out) both;
+}
+.finish-pop b {
+  color: var(--ink);
+  font-weight: 700;
+}
+.finish-pop em {
+  font-family: var(--font-mono);
+  font-style: normal;
+  color: var(--fp-color);
+  font-variant-numeric: tabular-nums;
+}
+@keyframes pop-float {
+  0% {
+    opacity: 0;
+    transform: translateY(6px) scale(0.92);
+  }
+  10%,
+  72% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-26px) scale(0.97);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .finish-pop {
+    animation: pop-fade 2.6s ease both;
+  }
+  @keyframes pop-fade {
+    0%,
+    80% {
+      opacity: 1;
+    }
+    100% {
+      opacity: 0;
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #panel,
+  .lb-row,
+  .sheet-scrim,
+  .runner-label {
+    transition-duration: 1ms;
+    animation-duration: 1ms;
+  }
+}
+
+/* ── Gap chart (U7) ───────────────────────────────────────────────────── */
+#gapchart {
+  z-index: 15;
+  display: flex;
+  flex-direction: column;
+  background: var(--glass);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--line);
+  overflow: hidden;
+}
+#gapchart:empty {
+  display: none;
+}
+
+/* Desktop: strip above the transport, centred in the space left of the panel */
+@media (min-width: 901px) {
+  #gapchart {
+    position: absolute;
+    left: 16px;
+    right: 328px;
+    bottom: 80px;
+    height: 132px;
+    max-width: 920px;
+    margin-inline: auto;
+    border-radius: 14px;
+    padding: 8px 12px 4px;
+  }
+}
+/* Wide screens: the panel hugs the top-right and never reaches this low, so
+   centre on the full viewport instead of the strip beside the panel. */
+@media (min-width: 1280px) {
+  #gapchart {
+    right: 16px;
+  }
+}
+
+/* Mobile: docked at the top of the bottom sheet */
+#gapchart.in-sheet {
+  position: relative; /* anchors the overlay labels */
+  flex: 0 0 auto;
+  height: 118px;
+  margin: 0 8px 4px;
+  border-radius: 10px;
+  padding: 6px 10px 2px;
+}
+
+.gc-svg {
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 0;
+}
+.gc-center {
+  stroke: var(--ink-faint);
+  stroke-width: 1;
+  stroke-dasharray: 4 4;
+  vector-effect: non-scaling-stroke;
+}
+/* Tinted halves: above the centerline = ahead, below = behind */
+.gc-zone-ahead {
+  fill: var(--early);
+  opacity: 0.07;
+}
+.gc-zone-behind {
+  fill: var(--late);
+  opacity: 0.07;
+}
+.gc-line {
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+  transition: opacity var(--dur-ui) var(--ease-out);
+}
+.gc-playhead {
+  stroke: var(--ink);
+  stroke-width: 1;
+  opacity: 0.7;
+  vector-effect: non-scaling-stroke;
+}
+#gapchart[data-sel]:not([data-sel='']) .gc-line:not(.sel),
+#gapchart[data-sel]:not([data-sel='']) .gc-dot:not(.sel) {
+  opacity: var(--dim);
+}
+.gc-line.sel {
+  stroke-width: 3;
+}
+
+/* Live per-runner dot at the playhead (zero-length round-capped line) */
+.gc-dot {
+  stroke-width: 6.5;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+  transition: opacity var(--dur-ui) var(--ease-out);
+}
+.gc-dot.sel {
+  stroke-width: 9;
+}
+
+/* In-chart labels, placed on the halves they describe */
+.gc-lab {
+  position: absolute;
+  left: 12px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--glass);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  pointer-events: none;
+}
+.gc-lab-ahead {
+  top: 9px;
+  color: var(--early);
+}
+.gc-lab-behind {
+  bottom: 24px;
+  color: var(--late);
+}
+
+/* Runner colours are baked for the dark map; darken them a touch so thin
+   chart lines and swatches keep contrast on the light glass. */
+:root[data-theme='light'] .gc-line,
+:root[data-theme='light'] .lb-swatch {
+  filter: saturate(1.15) brightness(0.8);
+}
+
+.gc-axis {
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  padding-top: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gc-line {
+    transition-duration: 1ms;
+  }
+}
+
+/* ── Winner reveal (U8) ───────────────────────────────────────────────── */
+#winner {
+  --w-color: var(--accent);
+  position: absolute;
+  z-index: 30;
+  top: 44%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px 30px;
+  border-radius: 20px;
+  background: var(--glass);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 2px solid var(--w-color);
+  box-shadow: 0 0 56px -8px var(--w-color);
+  font-family: var(--font-display);
+  white-space: nowrap;
+  animation: winner-in 520ms cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+#winner[hidden] {
+  display: none;
+}
+.w-trophy {
+  font-size: 42px;
+  display: inline-block;
+  animation: trophy-pop 600ms cubic-bezier(0.34, 1.56, 0.64, 1) 120ms both;
+}
+.w-text {
+  font-size: 22px;
+  color: var(--ink);
+}
+.w-text b {
+  color: var(--w-color);
+}
+.w-text em {
+  font-family: var(--font-mono);
+  font-style: normal;
+  color: var(--ink-dim);
+  margin-left: 6px;
+}
+@keyframes winner-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+@keyframes trophy-pop {
+  0% {
+    transform: scale(0.4);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@media (max-width: 640px) {
+  #winner {
+    top: 38%;
+    gap: 12px;
+    padding: 14px 20px;
+    border-radius: 16px;
+  }
+  .w-trophy {
+    font-size: 32px;
+  }
+  .w-text {
+    font-size: 16px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #winner,
+  .w-trophy {
+    animation: winner-fade 200ms ease both;
+  }
+  @keyframes winner-fade {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+}

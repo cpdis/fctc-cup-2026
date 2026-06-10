@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no"
+    />
+    <title>FCTC Cup — Herdsman Lake</title>
+    <meta
+      name="description"
+      content="The FCTC Cup: watch every runner race their own predicted time around Herdsman Lake."
+    />
+    <!-- Set the theme before first paint so there's no flash of the wrong one.
+         src/theme.ts re-derives the same value for the runtime. -->
+    <script>
+      try {
+        var t = localStorage.getItem('fctc-theme');
+        if (t !== 'light' && t !== 'dark')
+          t = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+        document.documentElement.dataset.theme = t;
+      } catch (e) {}
+    </script>
+    <meta name="theme-color" content="#0a0e14" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#f5f3ee" media="(prefers-color-scheme: light)" />
+    <link rel="preconnect" href="https://tiles.openfreemap.org" crossorigin />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=JetBrains+Mono:wght@400;600&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div id="app">
+      <div id="map" aria-label="Map of Herdsman Lake with the race replay"></div>
+
+      <!-- Title / start-line chrome (U6/U8) -->
+      <header id="masthead">
+        <span class="masthead-mark">FCTC&nbsp;CUP</span>
+        <span class="masthead-sub">Herdsman&nbsp;Lake</span>
+        <button id="theme-toggle" type="button" aria-label="Toggle light or dark theme"></button>
+        <button id="cam-toggle" type="button" aria-label="Auto camera follows the runners" aria-pressed="true" title="Auto camera">
+          <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M12 3v3m0 12v3M3 12h3m12 0h3"/><circle cx="12" cy="12" r="4.5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/></svg>
+        </button>
+      </header>
+
+      <!-- Leaderboard: side panel on desktop, bottom sheet on mobile (U6) -->
+      <aside id="panel" data-state="peek" aria-label="Cup standings">
+        <button id="sheet-handle" type="button" aria-label="Expand standings"></button>
+        <div id="leaderboard" role="list"></div>
+      </aside>
+
+      <!-- Gap chart: delta vs prediction (U7) -->
+      <section id="gapchart" aria-label="Time ahead or behind prediction"></section>
+
+      <!-- Playback transport (U4) -->
+      <footer id="transport" aria-label="Playback controls"></footer>
+
+      <!-- Winner reveal (U8) -->
+      <div id="winner" hidden role="status" aria-live="polite"></div>
+
+      <!-- Boot / error message -->
+      <div id="boot" role="status">Loading the lake…</div>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
