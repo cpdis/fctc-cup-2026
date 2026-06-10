@@ -106,11 +106,11 @@ describe('createEngine batched updates', () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const engine = createEngine(map as any, data);
     engine.render(1000);
-    for (const id of ['runners-dots', 'runners-trail']) {
+    for (const id of ['runners-ghosts', 'runners-trail']) {
       expect(map._sources[id].setData).toHaveBeenCalledTimes(1);
     }
     engine.render(2000);
-    for (const id of ['runners-dots', 'runners-trail']) {
+    for (const id of ['runners-ghosts', 'runners-trail']) {
       expect(map._sources[id].setData).toHaveBeenCalledTimes(2);
     }
   });

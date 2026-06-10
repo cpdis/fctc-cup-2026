@@ -4,6 +4,7 @@ import maplibregl from 'maplibre-gl';
 import confetti from 'canvas-confetti';
 import { createMap } from './map';
 import { createAutoCamera } from './camera';
+import { createFigures } from './figures';
 import { Clock } from './clock';
 import { createTransport } from './transport';
 import { createEngine } from './engine';
@@ -73,8 +74,12 @@ async function main(): Promise<void> {
   );
   frames.push((t) => transport.update(t));
 
+  const root = document.documentElement;
   function loop(): void {
     const t = clock.tick();
+    // The figures' run-cycle pauses in CSS whenever the clock isn't running.
+    const racing = String(clock.playing);
+    if (root.dataset.racing !== racing) root.dataset.racing = racing;
     if (t !== lastT || performance.now() < dirtyUntil || cameraSettling()) {
       lastT = t;
       for (const f of frames) f(t);
@@ -89,6 +94,15 @@ async function main(): Promise<void> {
   const winnerId = finalWinnerId(data.runners);
   const engine = createEngine(handle.map, data);
   frames.push((t) => engine.render(t));
+
+  // Figures ride the engine's positions, so they must update after it.
+  const figures = createFigures(
+    handle.map,
+    data.runners.filter((r) => !r.noData),
+    (id) => engine.positionOf(id),
+    (id) => setSelection(selectedId === id ? null : id),
+  );
+  frames.push((t) => figures.update(t));
   // The style load can outlast the boot dirty window; without this the engine
   // never paints its first (paused, t=0) frame and the start line looks empty.
   markDirty(1600); // covers the staggered entrance
@@ -122,7 +136,7 @@ async function main(): Promise<void> {
 
   const labelEl = document.createElement('div');
   labelEl.className = 'runner-label';
-  const labelMarker = new maplibregl.Marker({ element: labelEl, anchor: 'bottom', offset: [0, -14] });
+  const labelMarker = new maplibregl.Marker({ element: labelEl, anchor: 'bottom', offset: [0, -32] });
 
   const leaderboard = createLeaderboard(
     document.getElementById('leaderboard') as HTMLElement,
@@ -169,7 +183,7 @@ async function main(): Promise<void> {
       chip.style.setProperty('--fp-color', r.color);
       chip.innerHTML = `<b>${r.name}</b><em>${formatDelta(r.deltaMs)}</em>`;
       el.appendChild(chip);
-      const m = new maplibregl.Marker({ element: el, anchor: 'bottom', offset: [0, -16] })
+      const m = new maplibregl.Marker({ element: el, anchor: 'bottom', offset: [0, -32] })
         .setLngLat(engine.positionOf(r.id) ?? startPos)
         .addTo(handle.map);
       setTimeout(() => m.remove(), 2600);
@@ -247,6 +261,7 @@ async function main(): Promise<void> {
     selectedId = id;
     markDirty(700); // let the dim / label transition play out
     engine.setSelected(id);
+    figures.setSelected(id);
     leaderboard.setSelected(id);
     gapChart.setSelected(id);
     if (id) {
@@ -274,21 +289,9 @@ async function main(): Promise<void> {
     }
   });
 
-  // Tap a runner on the map to select; tap empty map to deselect.
-  handle.map.on('click', 'runners-icon', (e) => {
-    const id = e.features?.[0]?.id;
-    if (id != null) setSelection(String(id));
-  });
-  handle.map.on('click', (e) => {
-    const hit = handle.map.queryRenderedFeatures(e.point, { layers: ['runners-icon'] });
-    if (hit.length === 0) setSelection(null);
-  });
-  handle.map.on('mouseenter', 'runners-icon', () => {
-    handle.map.getCanvas().style.cursor = 'pointer';
-  });
-  handle.map.on('mouseleave', 'runners-icon', () => {
-    handle.map.getCanvas().style.cursor = '';
-  });
+  // Figures select themselves (DOM click in figures.ts); a tap on empty map
+  // deselects. Marker clicks stopPropagation, so they never reach this.
+  handle.map.on('click', () => setSelection(null));
 
   if (import.meta.env.DEV) {
     (window as unknown as Record<string, unknown>).__fctc = {

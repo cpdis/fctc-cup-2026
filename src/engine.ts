@@ -1,14 +1,15 @@
 // The render engine. Once per frame it turns the clock's scalar time into
-// on-map motion: a ghost (constant predicted pace) and a solid icon (real GPS
-// or constant-pace fallback) per runner, plus a short trail behind each icon.
+// on-map motion: a ghost dot (constant predicted pace) and a short trail per
+// runner, plus the authoritative icon POSITION for each runner — the visible
+// runner figure itself is a DOM marker owned by src/figures.ts, fed from
+// positionOf()/positionsSnapshot().
 //
 // Perf contract (the whole app must idle when nothing moves):
-//  - Markers live in TWO GeoJSON sources — dots (icons + ghosts, split into two
-//    circle layers by a `kind` filter) and trails — so a frame costs two
-//    setData calls, not four. Circle layers are used deliberately: no symbol
+//  - Ghosts and trails live in one GeoJSON source each, so a frame costs two
+//    setData calls total. Circle layers are used deliberately: no symbol
 //    fade-on-move, so motion stays flicker-free with no extra config.
-//  - The winner halo is a DOM marker pulsed by a CSS animation, NOT a
-//    per-frame paint update — the finished/paused app does zero JS per frame.
+//  - The winner halo and the figures are DOM markers animated by CSS, NOT
+//    per-frame paint updates — the finished/paused app does zero JS per frame.
 //
 // Finish corral: finished runners park in a tidy row angled off the finish
 // line (ordered by finish time) instead of stacking on one point, so every
@@ -23,7 +24,6 @@ import type { Feature, FeatureCollection, Point, LineString } from 'geojson';
 import { progressToCoord } from './geo';
 import type { ReplayData, Runner, RouteLUT, LngLat } from './types';
 
-const ICON_R = 7;
 const GHOST_R = 5;
 const TRAIL_M = 220; // length of the icon's trail, in metres along the route
 const TRAIL_STRIDE_M = 8; // sample the trail every ~8 m
@@ -101,7 +101,6 @@ export interface EngineHandle {
 
 interface RunnerView {
   runner: Runner;
-  icon: Feature<Point>;
   ghost: Feature<Point>;
   trail: Feature<LineString>;
 }
@@ -114,8 +113,7 @@ export function createEngine(map: MlMap, data: ReplayData): EngineHandle {
 
   const views: RunnerView[] = active.map((runner) => ({
     runner,
-    icon: pointFeature(runner.id, 'icon', runner.color, ICON_R),
-    ghost: pointFeature(`g:${runner.id}`, 'ghost', runner.color, GHOST_R),
+    ghost: pointFeature(`g:${runner.id}`, runner.color, GHOST_R),
     trail: {
       type: 'Feature',
       properties: { color: runner.color, opacity: 0.5 },
@@ -123,8 +121,7 @@ export function createEngine(map: MlMap, data: ReplayData): EngineHandle {
     },
   }));
 
-  // One source for all dots: icons + ghosts, separated by layer filters.
-  const dotsFC = collection(views.flatMap((v) => [v.ghost, v.icon]));
+  const ghostFC = collection(views.map((v) => v.ghost));
   const trailFC = collection(views.map((v) => v.trail));
 
   // Add layers as soon as the style is parsed. Don't gate on isStyleLoaded():
@@ -135,7 +132,7 @@ export function createEngine(map: MlMap, data: ReplayData): EngineHandle {
   // setStyle (basemap/theme switch) wipes them. render() safely no-ops
   // (optional chaining on getSource) until the sources exist.
   const ensureLayers = (): void => {
-    if (map.getSource('runners-dots')) return;
+    if (map.getSource('runners-ghosts')) return;
     try {
       addSourcesAndLayers(map);
     } catch {
@@ -175,16 +172,13 @@ export function createEngine(map: MlMap, data: ReplayData): EngineHandle {
         Math.min(1, Math.max(0, (entranceT - k * ENTRANCE_STAGGER_MS) / ENTRANCE_MS)),
       );
       const dim = selected && r.id !== selected ? DIM : 1;
-      const sel = selected === r.id;
 
-      // Icon: on course while running, parked in the corral once finished.
+      // Icon position: on course while running, parked in the corral once
+      // finished. The figure marker (src/figures.ts) reads this via positionOf.
       const ic = finished
         ? (corral.get(r.id) as LngLat)
         : progressToCoord(route, iconProgressAt(r, raceMs, L));
-      (v.icon.geometry as Point).coordinates = ic;
       positions.set(r.id, ic);
-      v.icon.properties!.opacity = dim * e;
-      v.icon.properties!.r = (sel ? ICON_R + 1.5 : ICON_R) * (0.85 + 0.15 * e);
 
       // Ghost (constant predicted pace): fades out once it reaches the line,
       // so phantoms don't pile up on the finish point.
@@ -203,7 +197,7 @@ export function createEngine(map: MlMap, data: ReplayData): EngineHandle {
     }
 
     (map.getSource('runners-trail') as GeoJSONSource | undefined)?.setData(trailFC);
-    (map.getSource('runners-dots') as GeoJSONSource | undefined)?.setData(dotsFC);
+    (map.getSource('runners-ghosts') as GeoJSONSource | undefined)?.setData(ghostFC);
   }
 
   return {
@@ -218,16 +212,11 @@ export function createEngine(map: MlMap, data: ReplayData): EngineHandle {
   };
 }
 
-function pointFeature(
-  id: string,
-  kind: 'icon' | 'ghost',
-  color: string,
-  r: number,
-): Feature<Point> {
+function pointFeature(id: string, color: string, r: number): Feature<Point> {
   return {
     type: 'Feature',
     id,
-    properties: { id, kind, color, r, opacity: 0 },
+    properties: { id, color, r, opacity: 0 },
     geometry: { type: 'Point', coordinates: [0, 0] },
   };
 }
@@ -239,7 +228,7 @@ function collection<T extends Feature>(features: T[]): FeatureCollection {
 function addSourcesAndLayers(map: MlMap): void {
   const empty: FeatureCollection = { type: 'FeatureCollection', features: [] };
   map.addSource('runners-trail', { type: 'geojson', data: empty });
-  map.addSource('runners-dots', { type: 'geojson', data: empty });
+  map.addSource('runners-ghosts', { type: 'geojson', data: empty });
 
   map.addLayer({
     id: 'runners-trail',
@@ -257,30 +246,13 @@ function addSourcesAndLayers(map: MlMap): void {
   map.addLayer({
     id: 'runners-ghost',
     type: 'circle',
-    source: 'runners-dots',
-    filter: ['==', ['get', 'kind'], 'ghost'],
+    source: 'runners-ghosts',
     paint: {
       'circle-color': ['get', 'color'],
       'circle-radius': ['get', 'r'],
       'circle-opacity': ['get', 'opacity'],
       'circle-stroke-color': ['get', 'color'],
       'circle-stroke-width': 1,
-      'circle-stroke-opacity': ['get', 'opacity'],
-    },
-  });
-
-  // Solid icon: the real run, with a dark casing so it reads on any background.
-  map.addLayer({
-    id: 'runners-icon',
-    type: 'circle',
-    source: 'runners-dots',
-    filter: ['==', ['get', 'kind'], 'icon'],
-    paint: {
-      'circle-color': ['get', 'color'],
-      'circle-radius': ['get', 'r'],
-      'circle-opacity': ['get', 'opacity'],
-      'circle-stroke-color': '#0a0e14',
-      'circle-stroke-width': 2,
       'circle-stroke-opacity': ['get', 'opacity'],
     },
   });
