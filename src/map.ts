@@ -104,6 +104,8 @@ export interface MapHandle {
   map: MlMap;
   /** Resolves once the style has loaded and the route line is drawn. */
   whenReady: Promise<void>;
+  /** Chrome-clearing padding used for the initial fit (and the auto camera). */
+  fitPadding: { top: number; right: number; bottom: number; left: number };
 }
 
 export function createMap(
@@ -145,6 +147,7 @@ export function createMap(
     dragRotate: false,
     pitchWithRotate: false,
     rollEnabled: false,
+    fadeDuration: 0, // no tile-label crossfade work while the camera glides
     attributionControl: { compact: true },
   });
   // Keep the frame honest: no tilt, no rotate. Pinch-zoom within bounds is fine.
@@ -188,7 +191,7 @@ export function createMap(
     }
   });
 
-  return { map, whenReady };
+  return { map, whenReady, fitPadding };
 }
 
 /** Draw the canonical loop: a faint wide casing under a brighter thin line. */

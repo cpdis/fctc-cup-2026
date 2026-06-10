@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { createEngine, ghostProgressAt, iconProgressAt } from '../src/engine';
+import { createEngine, ghostProgressAt, iconProgressAt, corralSlots } from '../src/engine';
 import type { ReplayData, Runner, RouteLUT } from '../src/types';
 
 const L = 1000;
@@ -106,11 +106,11 @@ describe('createEngine batched updates', () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const engine = createEngine(map as any, data);
     engine.render(1000);
-    for (const id of ['runners-icon', 'runners-ghost', 'runners-trail']) {
+    for (const id of ['runners-dots', 'runners-trail']) {
       expect(map._sources[id].setData).toHaveBeenCalledTimes(1);
     }
     engine.render(2000);
-    for (const id of ['runners-icon', 'runners-ghost', 'runners-trail']) {
+    for (const id of ['runners-dots', 'runners-trail']) {
       expect(map._sources[id].setData).toHaveBeenCalledTimes(2);
     }
   });
@@ -124,5 +124,43 @@ describe('createEngine batched updates', () => {
     expect(pos).toBeDefined();
     // GPS runner at t=1000 is at 400 m -> lng ~ 400/111320.
     expect(pos![0]).toBeCloseTo(400 / 111320, 6);
+  });
+
+  it('parks finished runners in their corral slot, off the finish point', () => {
+    const map = fakeMap();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const engine = createEngine(map as any, data);
+    engine.render(2500); // g finished (2000), f still running (4000)
+    const slots = corralSlots(lut(), data.runners);
+    expect(engine.positionOf('g')).toEqual(slots.get('g'));
+    expect(engine.positionOf('f')![0]).toBeCloseTo(625 / 111320, 6); // on course
+  });
+
+  it('exposes a positions snapshot for the auto camera', () => {
+    const map = fakeMap();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const engine = createEngine(map as any, data);
+    engine.render(1000);
+    expect(engine.positionsSnapshot()).toHaveLength(2);
+  });
+});
+
+describe('corralSlots', () => {
+  it('fans finishers out perpendicular to the finish heading, in finish order', () => {
+    const slots = corralSlots(lut(), [gpsRunner(), fallbackRunner()]);
+    const g = slots.get('g')!; // finishes first -> closest slot
+    const f = slots.get('f')!;
+    // Route heads due east, so the corral runs due north (or south): same lng
+    // as the finish, offset only in lat, second finisher further out.
+    expect(g[0]).toBeCloseTo(1000 / 111320, 6);
+    expect(f[0]).toBeCloseTo(1000 / 111320, 6);
+    expect(Math.abs(g[1])).toBeGreaterThan(0);
+    expect(Math.abs(f[1])).toBeGreaterThan(Math.abs(g[1]));
+  });
+
+  it('ignores runners with no finish time', () => {
+    const noData: Runner = { ...fallbackRunner(), id: 'n', actualFinishMs: null, deltaMs: null };
+    const slots = corralSlots(lut(), [noData]);
+    expect(slots.size).toBe(0);
   });
 });

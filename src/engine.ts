@@ -1,14 +1,27 @@
 // The render engine. Once per frame it turns the clock's scalar time into
 // on-map motion: a ghost (constant predicted pace) and a solid icon (real GPS
 // or constant-pace fallback) per runner, plus a short trail behind each icon.
-// All markers live in one GeoJSON source per layer and update with a single
-// setData per frame (KTD6). Circle layers are used deliberately — they have no
-// symbol fade-on-move, so motion stays flicker-free with no extra config.
+//
+// Perf contract (the whole app must idle when nothing moves):
+//  - Markers live in TWO GeoJSON sources — dots (icons + ghosts, split into two
+//    circle layers by a `kind` filter) and trails — so a frame costs two
+//    setData calls, not four. Circle layers are used deliberately: no symbol
+//    fade-on-move, so motion stays flicker-free with no extra config.
+//  - The winner halo is a DOM marker pulsed by a CSS animation, NOT a
+//    per-frame paint update — the finished/paused app does zero JS per frame.
+//
+// Finish corral: finished runners park in a tidy row angled off the finish
+// line (ordered by finish time) instead of stacking on one point, so every
+// finisher stays visible and selectable.
+//
+// Type-only maplibre imports, deliberately: the engine stays loadable in
+// jsdom tests (maplibre's bundle touches window APIs at import time). DOM
+// markers (halo, labels, pops) belong to main.ts.
 
 import type { Map as MlMap, GeoJSONSource } from 'maplibre-gl';
 import type { Feature, FeatureCollection, Point, LineString } from 'geojson';
 import { progressToCoord } from './geo';
-import type { ReplayData, Runner, LngLat } from './types';
+import type { ReplayData, Runner, RouteLUT, LngLat } from './types';
 
 const ICON_R = 7;
 const GHOST_R = 5;
@@ -17,6 +30,8 @@ const TRAIL_STRIDE_M = 8; // sample the trail every ~8 m
 const DIM = 0.3;
 const ENTRANCE_MS = 320;
 const ENTRANCE_STAGGER_MS = 55;
+const CORRAL_GAP_M = 7; // spacing between parked finishers
+const CORRAL_BACK_M = 9; // first slot's clearance from the finish point
 
 const easeOut = (p: number): number => 1 - (1 - p) ** 3;
 
@@ -43,30 +58,64 @@ export function iconProgressAt(r: Runner, t: number, L: number): number {
   return L * Math.min(1, Math.max(0, t / finish));
 }
 
+/**
+ * Static corral slots: one parking spot per finisher, in finish order, fanned
+ * out perpendicular to the route's final heading so the queue forms beside the
+ * finish line. Pure + precomputable (finish times are baked).
+ */
+export function corralSlots(route: RouteLUT, runners: Runner[]): Map<string, LngLat> {
+  const finishers = runners
+    .filter((r) => r.actualFinishMs !== null)
+    .sort((a, b) => (a.actualFinishMs as number) - (b.actualFinishMs as number));
+
+  const end = progressToCoord(route, route.lengthM);
+  const before = progressToCoord(route, route.lengthM - 15);
+  // Unit perpendicular to the finish heading, in metre-space.
+  let dx = end[0] - before[0];
+  let dy = end[1] - before[1];
+  const cosLat = Math.cos((end[1] * Math.PI) / 180);
+  dx *= cosLat; // to metre-proportional space
+  const len = Math.hypot(dx, dy) || 1;
+  const px = -dy / len;
+  const py = dx / len;
+
+  const mToLng = 1 / (111_320 * cosLat);
+  const mToLat = 1 / 111_320;
+
+  const slots = new Map<string, LngLat>();
+  finishers.forEach((r, i) => {
+    const m = CORRAL_BACK_M + i * CORRAL_GAP_M;
+    slots.set(r.id, [end[0] + px * m * mToLng, end[1] + py * m * mToLat]);
+  });
+  return slots;
+}
+
 export interface EngineHandle {
   render(raceMs: number): void;
   setSelected(id: string | null): void;
   /** Current icon position for a runner, for the on-map label (U6). */
   positionOf(id: string): LngLat | undefined;
+  /** Snapshot of every active runner's icon position (reused array). */
+  positionsSnapshot(): LngLat[];
 }
 
 interface RunnerView {
   runner: Runner;
   icon: Feature<Point>;
-  ghost: Feature<Point> | null;
+  ghost: Feature<Point>;
   trail: Feature<LineString>;
 }
 
-export function createEngine(map: MlMap, data: ReplayData, winnerId?: string | null): EngineHandle {
+export function createEngine(map: MlMap, data: ReplayData): EngineHandle {
   const { route } = data;
   const L = route.lengthM;
   const active = data.runners.filter((r) => !r.noData);
-  const winner = active.find((r) => r.id === winnerId) ?? null;
+  const corral = corralSlots(route, active);
 
   const views: RunnerView[] = active.map((runner) => ({
     runner,
-    icon: pointFeature(runner.id, runner.color, ICON_R),
-    ghost: pointFeature(runner.id, runner.color, GHOST_R),
+    icon: pointFeature(runner.id, 'icon', runner.color, ICON_R),
+    ghost: pointFeature(`g:${runner.id}`, 'ghost', runner.color, GHOST_R),
     trail: {
       type: 'Feature',
       properties: { color: runner.color, opacity: 0.5 },
@@ -74,17 +123,9 @@ export function createEngine(map: MlMap, data: ReplayData, winnerId?: string | n
     },
   }));
 
-  const iconFC = collection(views.map((v) => v.icon));
-  const ghostFC = collection(views.map((v) => v.ghost as Feature<Point>));
+  // One source for all dots: icons + ghosts, separated by layer filters.
+  const dotsFC = collection(views.flatMap((v) => [v.ghost, v.icon]));
   const trailFC = collection(views.map((v) => v.trail));
-
-  // A single soft halo that appears on the winner's marker once they finish.
-  const glow: Feature<Point> = {
-    type: 'Feature',
-    properties: { color: winner?.color ?? '#fff', r: 0, opacity: 0 },
-    geometry: { type: 'Point', coordinates: [0, 0] },
-  };
-  const glowFC = collection([glow]);
 
   // Add layers as soon as the style is parsed. Don't gate on isStyleLoaded():
   // it stays false while sprites/tiles trickle in, and styledata never re-fires
@@ -94,7 +135,7 @@ export function createEngine(map: MlMap, data: ReplayData, winnerId?: string | n
   // setStyle (basemap/theme switch) wipes them. render() safely no-ops
   // (optional chaining on getSource) until the sources exist.
   const ensureLayers = (): void => {
-    if (map.getSource('runners-icon')) return;
+    if (map.getSource('runners-dots')) return;
     try {
       addSourcesAndLayers(map);
     } catch {
@@ -105,6 +146,7 @@ export function createEngine(map: MlMap, data: ReplayData, winnerId?: string | n
   map.on('styledata', ensureLayers);
 
   const positions = new Map<string, LngLat>();
+  const snapshot: LngLat[] = [];
   let selected: string | null = null;
   let entranceStart = NaN;
 
@@ -125,6 +167,8 @@ export function createEngine(map: MlMap, data: ReplayData, winnerId?: string | n
     for (let k = 0; k < views.length; k++) {
       const v = views[k];
       const r = v.runner;
+      const finished = r.actualFinishMs !== null && raceMs >= r.actualFinishMs;
+      const ghostDone = raceMs >= r.predictedFinishMs;
 
       // Entrance: staggered scale/opacity in, once, at the start line.
       const e = easeOut(
@@ -133,56 +177,57 @@ export function createEngine(map: MlMap, data: ReplayData, winnerId?: string | n
       const dim = selected && r.id !== selected ? DIM : 1;
       const sel = selected === r.id;
 
-      // Icon
-      const ip = iconProgressAt(r, raceMs, L);
-      const ic = progressToCoord(route, ip);
+      // Icon: on course while running, parked in the corral once finished.
+      const ic = finished
+        ? (corral.get(r.id) as LngLat)
+        : progressToCoord(route, iconProgressAt(r, raceMs, L));
       (v.icon.geometry as Point).coordinates = ic;
       positions.set(r.id, ic);
       v.icon.properties!.opacity = dim * e;
       v.icon.properties!.r = (sel ? ICON_R + 1.5 : ICON_R) * (0.85 + 0.15 * e);
 
-      // Ghost (constant predicted pace)
+      // Ghost (constant predicted pace): fades out once it reaches the line,
+      // so phantoms don't pile up on the finish point.
       const gp = ghostProgressAt(r, raceMs, L);
-      (v.ghost!.geometry as Point).coordinates = progressToCoord(route, gp);
-      v.ghost!.properties!.opacity = 0.32 * dim * e;
-      v.ghost!.properties!.r = GHOST_R * (0.85 + 0.15 * e);
+      (v.ghost.geometry as Point).coordinates = progressToCoord(route, gp);
+      v.ghost.properties!.opacity = ghostDone ? 0 : 0.32 * dim * e;
+      v.ghost.properties!.r = GHOST_R * (0.85 + 0.15 * e);
 
-      // Trail behind the icon
-      v.trail.geometry.coordinates = trailCoords(ip);
-      v.trail.properties!.opacity = 0.55 * dim * e;
-    }
-
-    // Winner halo: a gentle pulse on the winner's marker once they've finished.
-    if (winner && winner.actualFinishMs !== null && raceMs >= winner.actualFinishMs) {
-      const pos = positions.get(winner.id);
-      if (pos) {
-        const pulse = 0.5 + 0.5 * Math.sin(performance.now() / 380);
-        (glow.geometry as Point).coordinates = pos;
-        glow.properties!.r = 16 + 5 * pulse;
-        glow.properties!.opacity = 0.18 + 0.12 * pulse;
+      // Trail behind the icon; gone once parked.
+      if (finished) {
+        v.trail.geometry.coordinates = [];
+      } else {
+        v.trail.geometry.coordinates = trailCoords(iconProgressAt(r, raceMs, L));
+        v.trail.properties!.opacity = 0.55 * dim * e;
       }
-    } else {
-      glow.properties!.opacity = 0;
     }
 
-    (map.getSource('runners-glow') as GeoJSONSource | undefined)?.setData(glowFC);
     (map.getSource('runners-trail') as GeoJSONSource | undefined)?.setData(trailFC);
-    (map.getSource('runners-ghost') as GeoJSONSource | undefined)?.setData(ghostFC);
-    (map.getSource('runners-icon') as GeoJSONSource | undefined)?.setData(iconFC);
+    (map.getSource('runners-dots') as GeoJSONSource | undefined)?.setData(dotsFC);
   }
 
   return {
     render,
     setSelected: (id) => (selected = id),
     positionOf: (id) => positions.get(id),
+    positionsSnapshot: () => {
+      snapshot.length = 0;
+      for (const p of positions.values()) snapshot.push(p);
+      return snapshot;
+    },
   };
 }
 
-function pointFeature(id: string, color: string, r: number): Feature<Point> {
+function pointFeature(
+  id: string,
+  kind: 'icon' | 'ghost',
+  color: string,
+  r: number,
+): Feature<Point> {
   return {
     type: 'Feature',
     id,
-    properties: { id, color, r, opacity: 0 },
+    properties: { id, kind, color, r, opacity: 0 },
     geometry: { type: 'Point', coordinates: [0, 0] },
   };
 }
@@ -193,23 +238,8 @@ function collection<T extends Feature>(features: T[]): FeatureCollection {
 
 function addSourcesAndLayers(map: MlMap): void {
   const empty: FeatureCollection = { type: 'FeatureCollection', features: [] };
-  map.addSource('runners-glow', { type: 'geojson', data: empty });
   map.addSource('runners-trail', { type: 'geojson', data: empty });
-  map.addSource('runners-ghost', { type: 'geojson', data: empty });
-  map.addSource('runners-icon', { type: 'geojson', data: empty });
-
-  // Winner halo sits beneath everything else.
-  map.addLayer({
-    id: 'runners-glow',
-    type: 'circle',
-    source: 'runners-glow',
-    paint: {
-      'circle-color': ['get', 'color'],
-      'circle-radius': ['get', 'r'],
-      'circle-opacity': ['get', 'opacity'],
-      'circle-blur': 1,
-    },
-  });
+  map.addSource('runners-dots', { type: 'geojson', data: empty });
 
   map.addLayer({
     id: 'runners-trail',
@@ -227,7 +257,8 @@ function addSourcesAndLayers(map: MlMap): void {
   map.addLayer({
     id: 'runners-ghost',
     type: 'circle',
-    source: 'runners-ghost',
+    source: 'runners-dots',
+    filter: ['==', ['get', 'kind'], 'ghost'],
     paint: {
       'circle-color': ['get', 'color'],
       'circle-radius': ['get', 'r'],
@@ -242,7 +273,8 @@ function addSourcesAndLayers(map: MlMap): void {
   map.addLayer({
     id: 'runners-icon',
     type: 'circle',
-    source: 'runners-icon',
+    source: 'runners-dots',
+    filter: ['==', ['get', 'kind'], 'icon'],
     paint: {
       'circle-color': ['get', 'color'],
       'circle-radius': ['get', 'r'],
