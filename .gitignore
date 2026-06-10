@@ -7,3 +7,4 @@ dist/
 public/replay.json
 # Owned basemap extract is large and produced via scripts/extract-basemap.md
 public/basemap.pmtiles
+review/
