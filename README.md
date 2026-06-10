@@ -115,16 +115,19 @@ flat inline background (offline / deterministic screenshots).
 
 ## Deploy
 
-Static output, so any static host works. For Vercel + `fctc.fun`:
+Lives at **[fctc.fun/cup](https://fctc.fun/cup)**. The chain:
 
-```bash
-vercel            # link + deploy a preview
-vercel --prod     # promote to production
-```
+1. **Vercel** — the `fctc-cup-2026` project builds from this repo's `main`
+   (`git push` deploys; `vercel --prod` for a manual deploy). The app is built
+   with base `/cup/` and `vercel.json` rewrites `/cup/*` → `/*`, so the
+   deployment serves the prefixed paths.
+2. **Cloudflare** — fctc.fun's apex is a Framer site; the `fctc2025-proxy`
+   Worker (catch-all route on `fctc.fun/*`) sends `/cup*` here and
+   `/dashboard*`, `/2025wrapped*`, `/assets*` to the dashboard app. The worker
+   source is versioned at [`scripts/fctc-proxy-worker.js`](scripts/fctc-proxy-worker.js);
+   deploy it with the wrangler command in its header comment.
 
-Then add `fctc.fun` under the project's Domains and point its DNS at Vercel.
-After the first deploy, enable **Bot Protection + AI bot blocking** in the Vercel
-Firewall. `vercel.json` sets long cache headers on the basemap and a short one on
+`vercel.json` sets long cache headers on the basemap and a short one on
 `replay.json`.
 
 ## Debugging

@@ -8,3 +8,4 @@ public/replay.json
 review/
 # stray local binary, not part of the repo
 planning/pmtiles
+.vercel
