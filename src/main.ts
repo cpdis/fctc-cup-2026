@@ -101,6 +101,7 @@ async function main(): Promise<void> {
     data.runners.filter((r) => !r.noData),
     (id) => engine.positionOf(id),
     (id) => setSelection(selectedId === id ? null : id),
+    winnerId,
   );
   frames.push((t) => figures.update(t));
   // The style load can outlast the boot dirty window; without this the engine

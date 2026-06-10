@@ -641,12 +641,14 @@ body {
   filter: drop-shadow(0 0 1.5px var(--bg));
 }
 
-/* Run cycle: forward lean + bob + alternating limb swings. transform-box lets
-   the rotation origins use viewBox coordinates (hip 11.4,19 / shoulder 12.2,13). */
+/* Run cycle: forward lean + springy bob with squash-and-stretch + alternating
+   limb swings, all timed by --fig-stride (set per runner from predicted pace —
+   bold predictions scurry, cautious ones lope). transform-box lets the rotation
+   origins use viewBox coordinates (hip 11.4,19 / shoulder 12.2,13). */
 .fig-lean {
   transform-box: view-box;
   transform-origin: 12px 16px;
-  transform: rotate(7deg);
+  transform: rotate(9deg);
 }
 .fig-bob,
 .fig-leg,
@@ -654,7 +656,8 @@ body {
   transform-box: view-box;
 }
 .fig-bob {
-  animation: fig-bob 0.3s ease-in-out infinite;
+  transform-origin: 12px 28px; /* squash from the feet */
+  animation: fig-bob calc(var(--fig-stride, 0.6s) / 2) ease-in-out infinite;
   animation-delay: var(--fig-phase);
 }
 .fig-leg {
@@ -665,50 +668,145 @@ body {
 }
 .fig-leg-f,
 .fig-arm-b {
-  animation: fig-swing 0.6s ease-in-out infinite;
+  animation: fig-swing var(--fig-stride, 0.6s) cubic-bezier(0.45, 0, 0.55, 1) infinite;
   animation-delay: var(--fig-phase);
 }
 .fig-leg-b,
 .fig-arm-f {
-  animation: fig-swing 0.6s ease-in-out infinite;
-  animation-delay: calc(var(--fig-phase) - 0.3s);
+  animation: fig-swing var(--fig-stride, 0.6s) cubic-bezier(0.45, 0, 0.55, 1) infinite;
+  animation-delay: calc(var(--fig-phase) - var(--fig-stride, 0.6s) / 2);
 }
 @keyframes fig-swing {
   0%,
   100% {
-    transform: rotate(38deg);
+    transform: rotate(46deg);
   }
   50% {
-    transform: rotate(-34deg);
+    transform: rotate(-42deg);
   }
 }
 @keyframes fig-bob {
   0%,
   100% {
-    transform: translateY(0);
+    transform: translateY(0) scale(1.05, 0.94); /* footfall squash */
   }
   50% {
-    transform: translateY(-0.9px);
+    transform: translateY(-1.7px) scale(0.98, 1.03); /* airborne stretch */
   }
 }
-/* Stand still whenever the clock isn't running, and once finished */
-:root[data-racing='false'] .runner-fig .fig-bob,
-:root[data-racing='false'] .runner-fig .fig-leg,
-:root[data-racing='false'] .runner-fig .fig-arm {
+
+/* Dust kicks off the back foot, one puff per footfall. Direction follows the
+   facing flip via --dust-x. */
+.runner-fig {
+  --dust-x: -9px;
+}
+.runner-fig.flip {
+  --dust-x: 9px;
+}
+.fig-dust {
+  position: absolute;
+  bottom: 1px;
+  left: 50%;
+  width: 5px;
+  height: 4px;
+  margin-left: -2px;
+  border-radius: 50%;
+  background: var(--ink-dim);
+  opacity: 0;
+  pointer-events: none;
+  animation: fig-dust calc(var(--fig-stride, 0.6s) / 2) ease-out infinite;
+  animation-delay: var(--fig-phase);
+}
+@keyframes fig-dust {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) scale(0.4);
+  }
+  25% {
+    opacity: 0.45;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--dust-x), -3px) scale(1.1);
+  }
+}
+
+/* Stand still whenever the clock isn't running (finished figures keep their
+   own gentler life below — breathing, victory hops). */
+:root[data-racing='false'] .runner-fig:not(.done) .fig-bob,
+:root[data-racing='false'] .runner-fig:not(.done) .fig-leg,
+:root[data-racing='false'] .runner-fig:not(.done) .fig-arm,
+:root[data-racing='false'] .runner-fig:not(.done) .fig-dust {
   animation-play-state: paused;
 }
-.runner-fig.done .fig-bob,
+
+/* Finished: stand upright in the corral, catching your breath */
 .runner-fig.done .fig-leg,
-.runner-fig.done .fig-arm {
+.runner-fig.done .fig-arm,
+.runner-fig.done .fig-dust {
   animation: none;
 }
-.runner-fig.done .fig-lean {
-  transform: none; /* stood upright in the corral */
+.runner-fig.done .fig-bob {
+  animation: fig-breathe 2.6s ease-in-out infinite;
+  animation-delay: var(--fig-phase);
 }
+.runner-fig.done .fig-lean {
+  transform: none;
+}
+@keyframes fig-breathe {
+  0%,
+  100% {
+    transform: scale(1, 1);
+  }
+  50% {
+    transform: scale(1.02, 0.985);
+  }
+}
+
+/* The winner jumps for joy, arms up in a V, until someone scrubs time back */
+.runner-fig.winner.done .fig-arm-f {
+  animation: none;
+  transform: rotate(-150deg);
+}
+.runner-fig.winner.done .fig-arm-b {
+  animation: none;
+  transform: rotate(155deg);
+}
+.runner-fig.winner.done svg {
+  animation: fig-victory 0.85s cubic-bezier(0.36, 0, 0.34, 1) infinite;
+  transform-origin: bottom center;
+}
+@keyframes fig-victory {
+  0%,
+  100% {
+    transform: translateY(0) scale(1.04, 0.95);
+  }
+  35%,
+  55% {
+    transform: translateY(-5px) scale(0.98, 1.04);
+  }
+}
+/* Compose the facing flip with the hop (the hop owns the svg transform) */
+.runner-fig.winner.done.flip svg {
+  animation-name: fig-victory-flip;
+}
+@keyframes fig-victory-flip {
+  0%,
+  100% {
+    transform: scaleX(-1) translateY(0) scale(1.04, 0.95);
+  }
+  35%,
+  55% {
+    transform: scaleX(-1) translateY(-5px) scale(0.98, 1.04);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .runner-fig .fig-bob,
   .runner-fig .fig-leg,
-  .runner-fig .fig-arm {
+  .runner-fig .fig-arm,
+  .runner-fig .fig-dust,
+  .runner-fig.winner.done svg {
     animation: none;
   }
 }

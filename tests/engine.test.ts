@@ -146,14 +146,14 @@ describe('createEngine batched updates', () => {
 });
 
 describe('corralSlots', () => {
-  it('fans finishers out perpendicular to the finish heading, in finish order', () => {
+  it('parks finishers in a sideways row just past the line, in finish order', () => {
     const slots = corralSlots(lut(), [gpsRunner(), fallbackRunner()]);
     const g = slots.get('g')!; // finishes first -> closest slot
     const f = slots.get('f')!;
-    // Route heads due east, so the corral runs due north (or south): same lng
-    // as the finish, offset only in lat, second finisher further out.
-    expect(g[0]).toBeCloseTo(1000 / 111320, 6);
-    expect(f[0]).toBeCloseTo(1000 / 111320, 6);
+    // Route heads due east: both first-row slots sit a few metres past the
+    // line (same lng) and offset sideways (lat), second finisher further out.
+    expect(g[0]).toBeCloseTo(1006 / 111320, 6);
+    expect(f[0]).toBeCloseTo(1006 / 111320, 6);
     expect(Math.abs(g[1])).toBeGreaterThan(0);
     expect(Math.abs(f[1])).toBeGreaterThan(Math.abs(g[1]));
   });

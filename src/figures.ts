@@ -54,16 +54,32 @@ export function createFigures(
   runners: Runner[],
   positionOf: (id: string) => LngLat | undefined,
   onSelect: (id: string) => void,
+  winnerId?: string | null,
 ): FiguresHandle {
+  // Stride cadence follows predicted pace: the bold predictions scurry, the
+  // cautious ones lope. Mapped across the field to 0.46–0.68 s per stride.
+  const preds = runners.map((r) => r.predictedFinishMs);
+  const minP = Math.min(...preds);
+  const spanP = Math.max(...preds) - minP || 1;
+
   const figs: Fig[] = runners.map((runner, i) => {
     const outer = document.createElement('div');
     const el = document.createElement('div');
     el.className = 'runner-fig';
+    if (runner.id === winnerId) {
+      el.classList.add('winner');
+      outer.style.zIndex = '2'; // above the corral crowd
+    }
     el.style.setProperty('--fig-color', runner.color);
+    const stride = 0.46 + 0.22 * ((runner.predictedFinishMs - minP) / spanP);
+    el.style.setProperty('--fig-stride', `${stride.toFixed(3)}s`);
     // Desync the strides so the field doesn't run in lockstep.
     el.style.setProperty('--fig-phase', `${-((i * 97) % 550)}ms`);
     el.style.setProperty('--fig-delay', `${i * ENTRANCE_STAGGER_MS}ms`);
     el.innerHTML = FIGURE_SVG;
+    const dust = document.createElement('div');
+    dust.className = 'fig-dust';
+    el.appendChild(dust);
     el.addEventListener('click', (e) => {
       e.stopPropagation(); // markers live in the canvas container; don't deselect
       onSelect(runner.id);
@@ -112,8 +128,11 @@ export function createFigures(
     update,
     setSelected(id: string | null): void {
       for (const f of figs) {
-        f.el.classList.toggle('sel', f.runner.id === id);
-        f.el.classList.toggle('dim', id !== null && f.runner.id !== id);
+        const sel = f.runner.id === id;
+        f.el.classList.toggle('sel', sel);
+        f.el.classList.toggle('dim', id !== null && !sel);
+        // Stacking: selected on top, winner above the crowd, others natural.
+        f.marker.getElement().style.zIndex = sel ? '3' : f.runner.id === winnerId ? '2' : '';
       }
     },
   };

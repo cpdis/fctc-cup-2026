@@ -30,8 +30,13 @@ const TRAIL_STRIDE_M = 8; // sample the trail every ~8 m
 const DIM = 0.3;
 const ENTRANCE_MS = 320;
 const ENTRANCE_STAGGER_MS = 55;
-const CORRAL_GAP_M = 7; // spacing between parked finishers
-const CORRAL_BACK_M = 9; // first slot's clearance from the finish point
+// Corral layout: a small crowd in rows beside the finish line. Figures are
+// ~22 px wide, so the gaps must survive the zoomed-out end-of-race framing.
+const CORRAL_PER_ROW = 6;
+const CORRAL_GAP_M = 13; // sideways spacing between parked finishers
+const CORRAL_BACK_M = 9; // first slot's sideways clearance from the finish point
+const CORRAL_ALONG_M = 6; // first row's clearance past the line
+const CORRAL_ROW_M = 12; // spacing between rows
 
 const easeOut = (p: number): number => 1 - (1 - p) ** 3;
 
@@ -59,9 +64,10 @@ export function iconProgressAt(r: Runner, t: number, L: number): number {
 }
 
 /**
- * Static corral slots: one parking spot per finisher, in finish order, fanned
- * out perpendicular to the route's final heading so the queue forms beside the
- * finish line. Pure + precomputable (finish times are baked).
+ * Static corral slots: one parking spot per finisher, in finish order, laid
+ * out as a small crowd in rows beside the finish line — sideways off the
+ * route's final heading, each row a bit further past the line. Pure +
+ * precomputable (finish times are baked).
  */
 export function corralSlots(route: RouteLUT, runners: Runner[]): Map<string, LngLat> {
   const finishers = runners
@@ -70,22 +76,28 @@ export function corralSlots(route: RouteLUT, runners: Runner[]): Map<string, Lng
 
   const end = progressToCoord(route, route.lengthM);
   const before = progressToCoord(route, route.lengthM - 15);
-  // Unit perpendicular to the finish heading, in metre-space.
+  // Unit heading + perpendicular at the finish, in metre-space.
   let dx = end[0] - before[0];
   let dy = end[1] - before[1];
   const cosLat = Math.cos((end[1] * Math.PI) / 180);
   dx *= cosLat; // to metre-proportional space
   const len = Math.hypot(dx, dy) || 1;
-  const px = -dy / len;
-  const py = dx / len;
+  const hx = dx / len;
+  const hy = dy / len;
+  const px = -hy;
+  const py = hx;
 
   const mToLng = 1 / (111_320 * cosLat);
   const mToLat = 1 / 111_320;
 
   const slots = new Map<string, LngLat>();
   finishers.forEach((r, i) => {
-    const m = CORRAL_BACK_M + i * CORRAL_GAP_M;
-    slots.set(r.id, [end[0] + px * m * mToLng, end[1] + py * m * mToLat]);
+    const side = CORRAL_BACK_M + (i % CORRAL_PER_ROW) * CORRAL_GAP_M;
+    const along = CORRAL_ALONG_M + Math.floor(i / CORRAL_PER_ROW) * CORRAL_ROW_M;
+    slots.set(r.id, [
+      end[0] + (px * side + hx * along) * mToLng,
+      end[1] + (py * side + hy * along) * mToLat,
+    ]);
   });
   return slots;
 }
