@@ -1,5 +1,11 @@
 // Cloudflare Worker `fctc2025-proxy` — path router for the fctc.fun zone.
 //
+// ⚠️ BYPASSED since 2026-06-10: fctc.fun is grey-cloud (DNS-only) to Vercel
+// and routing lives in cpdis/fctc-site's vercel.json. This worker no longer
+// sees traffic; it stays deployed as instant rollback (re-orange-cloud the
+// apex and it resumes routing). Safe to delete the worker + zone route once
+// the cutover has soaked.
+//
 // fctc.fun's apex is a Framer site; everything app-shaped lives on Vercel
 // behind path prefixes. This worker (catch-all route on fctc.fun/*) sends:
 //
