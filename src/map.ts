@@ -23,7 +23,7 @@ import { layers as protomapsLayers, namedFlavor } from '@protomaps/basemaps';
 import { getTheme, onThemeChange, type Theme } from './theme';
 import type { RaceMeta, RouteLUT } from './types';
 
-const PMTILES_PATH = '/basemap.pmtiles';
+const PMTILES_PATH = `${import.meta.env.BASE_URL}basemap.pmtiles`;
 const ROUTE_SOURCE = 'route';
 
 // Per-theme map colours: hosted style URL, flat fallback, and the route line.
