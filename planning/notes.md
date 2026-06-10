@@ -90,3 +90,7 @@
 ### Blockers / Open Questions
 - None blocking. Real basemap extract + deploy are the only things between here and live.
 - `fctc.fun` registrar/DNS not yet confirmed (needed before deploy).
+
+### Gap chart pass (38f6e41)
+- Tinted halves, on-half labels with axis range, playhead dots per runner,
+  centred (max-width 920px) on wide displays.
