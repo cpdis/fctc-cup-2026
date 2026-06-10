@@ -96,6 +96,22 @@ body {
   overflow: hidden;
 }
 
+/* Fade the map out toward the status bar / dynamic island instead of a hard
+   edge against the browser chrome (which is painted with theme-color). */
+@media (max-width: 900px) {
+  #app::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: calc(var(--safe-top) + 28px);
+    background: linear-gradient(to bottom, rgba(var(--fade), 0.92), rgba(var(--fade), 0));
+    z-index: 4; /* under the masthead (5), over the map */
+    pointer-events: none;
+  }
+}
+
 #map {
   position: absolute;
   inset: 0;
@@ -426,7 +442,8 @@ body {
   }
 }
 
-/* Mobile: bottom sheet */
+/* Mobile: bottom sheet. At peek only the handle + the runner chip rail show
+   (above the transport); expanding reveals the gap chart + full list. */
 @media (max-width: 900px) {
   #panel {
     left: 0;
@@ -437,6 +454,46 @@ body {
     border-bottom: none;
     will-change: transform;
     padding-bottom: calc(72px + var(--safe-bottom)); /* clear the transport */
+  }
+
+  /* Peek: the leaderboard becomes a horizontal chip rail so every runner's
+     name + live delta is readable without covering the map. The chart only
+     exists in the expanded sheet. */
+  #panel[data-state='peek'] #gapchart.in-sheet {
+    display: none;
+  }
+  #panel[data-state='peek'] #leaderboard {
+    order: 2;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    flex: 0 0 auto;
+    padding: 2px 12px 12px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  #panel[data-state='peek'] #leaderboard::-webkit-scrollbar {
+    display: none;
+  }
+  #panel[data-state='peek'] .lb-row {
+    display: flex;
+    flex: 0 0 auto;
+    width: auto;
+    align-items: center;
+    gap: 7px;
+    padding: 7px 12px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: var(--bg-elev);
+  }
+  #panel[data-state='peek'] .lb-rank {
+    font-size: 11px;
+  }
+  #panel[data-state='peek'] .lb-name {
+    font-size: 13px;
   }
 }
 

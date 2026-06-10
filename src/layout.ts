@@ -3,7 +3,11 @@
 // with pointer capture, velocity-based dismissal, and friction past the edges
 // (plan: Motion & Interaction Design). A scrim fades in with sheet progress.
 
-const PEEK_PX = 140;
+// Peek shows the handle + the runner chip rail, stacked ABOVE the transport
+// (which is fixed over the sheet's bottom edge) — so the peek height is the
+// visible content plus however tall the transport currently is (it varies
+// with the safe-area inset).
+const PEEK_CONTENT_PX = 92;
 const FLICK = 0.4; // px/ms past which a flick decides direction
 const TAP_PX = 6; // movement under this is a tap, not a drag
 const EDGE_FRICTION = 0.3;
@@ -25,7 +29,9 @@ export function createLayout(panel: HTMLElement, handle: HTMLElement): LayoutHan
   let currentY = 0;
 
   const isMobile = (): boolean => mq.matches;
-  const peekY = (): number => Math.max(0, panel.offsetHeight - PEEK_PX);
+  const peekPx = (): number =>
+    PEEK_CONTENT_PX + (document.getElementById('transport')?.offsetHeight ?? 68);
+  const peekY = (): number => Math.max(0, panel.offsetHeight - peekPx());
 
   function apply(y: number, animate: boolean): void {
     currentY = y;

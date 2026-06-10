@@ -19,8 +19,18 @@ function readInitial(): Theme {
   return matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
 }
 
+/** Keep the browser chrome (iOS status bar area etc.) matching the app. */
+function applyChrome(t: Theme): void {
+  document.documentElement.dataset.theme = t;
+  const color = t === 'dark' ? '#0a0e14' : '#f5f3ee';
+  for (const m of document.querySelectorAll('meta[name="theme-color"]')) {
+    m.removeAttribute('media'); // stop tracking the OS; the app owns the theme
+    m.setAttribute('content', color);
+  }
+}
+
 let current: Theme = readInitial();
-document.documentElement.dataset.theme = current;
+applyChrome(current);
 
 export function getTheme(): Theme {
   return current;
@@ -34,7 +44,7 @@ export function setTheme(t: Theme): void {
   } catch {
     /* fine — the choice just won't persist */
   }
-  document.documentElement.dataset.theme = t;
+  applyChrome(t);
   for (const fn of listeners) fn(t);
 }
 
