@@ -101,3 +101,10 @@
 
 ### Whimsy pass (8c927a2)
 - Pace cadence, dust kicks, corral crowd + breathing, winner victory hop.
+
+## Session Update - 2026-06-10 (shipped: fctc.fun/cup live)
+- Repo cpdis/fctc-cup-2026 (public) + Vercel project (git-connected).
+- Vite base /cup/, vercel.json /cup rewrites; Cloudflare worker fctc2025-proxy
+  extended with /cup -> fctc-cup-2026.vercel.app (source versioned in
+  scripts/fctc-proxy-worker.js). Verified live; dashboard/wrapped/Framer intact.
+- TODO: enable Vercel Firewall bot protection on fctc-cup-2026 (manual).
