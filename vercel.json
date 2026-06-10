@@ -3,7 +3,11 @@
   "framework": "vite",
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
-  "rewrites": [{ "source": "/cup/:path*", "destination": "/:path*" }],
+  "rewrites": [
+    { "source": "/cup", "destination": "/index.html" },
+    { "source": "/cup/", "destination": "/index.html" },
+    { "source": "/cup/:path+", "destination": "/:path+" }
+  ],
   "headers": [
     {
       "source": "/(cup/)?basemap.pmtiles",
