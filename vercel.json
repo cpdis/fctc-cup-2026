@@ -11,7 +11,13 @@
   "headers": [
     {
       "source": "/(cup/)?basemap.pmtiles",
-      "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }]
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" },
+        { "key": "Access-Control-Allow-Origin", "value": "*" },
+        { "key": "Access-Control-Allow-Methods", "value": "GET, HEAD" },
+        { "key": "Access-Control-Allow-Headers", "value": "Range" },
+        { "key": "Access-Control-Expose-Headers", "value": "Content-Range, Content-Length, ETag" }
+      ]
     },
     {
       "source": "/(cup/)?replay.json",

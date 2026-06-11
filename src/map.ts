@@ -23,7 +23,14 @@ import { layers as protomapsLayers, namedFlavor } from '@protomaps/basemaps';
 import { getTheme, onThemeChange, type Theme } from './theme';
 import type { RaceMeta, RouteLUT } from './types';
 
-const PMTILES_PATH = `${import.meta.env.BASE_URL}basemap.pmtiles`;
+// In production the basemap is fetched from this app's own Vercel domain,
+// NOT relative to the page origin: pmtiles needs precise byte-range reads,
+// and the fctc.fun hub's external-rewrite edge cache replays cached partials
+// without keying on the Range header (random slices -> no tiles). CORS for
+// this file is opened in vercel.json. Dev stays same-origin.
+const PMTILES_URL = import.meta.env.PROD
+  ? 'https://fctc-cup-2026.vercel.app/cup/basemap.pmtiles'
+  : `${import.meta.env.BASE_URL}basemap.pmtiles`;
 const ROUTE_SOURCE = 'route';
 
 // Per-theme map colours: hosted style URL, flat fallback, and the route line.
@@ -63,7 +70,7 @@ function pmtilesStyle(theme: Theme): StyleSpecification {
     sources: {
       protomaps: {
         type: 'vector',
-        url: `pmtiles://${PMTILES_PATH}`,
+        url: `pmtiles://${PMTILES_URL}`,
         attribution:
           '<a href="https://openstreetmap.org/copyright">OpenStreetMap</a> · <a href="https://protomaps.com">Protomaps</a>',
       },

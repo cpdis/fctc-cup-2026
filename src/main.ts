@@ -1,6 +1,7 @@
 import './style.css';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import maplibregl from 'maplibre-gl';
+import { inject as injectAnalytics } from '@vercel/analytics';
 import confetti from 'canvas-confetti';
 import { createMap } from './map';
 import { createAutoCamera } from './camera';
@@ -40,6 +41,10 @@ async function loadReplay(): Promise<ReplayData | null> {
 }
 
 async function main(): Promise<void> {
+  // Web Analytics. Served via fctc.fun the events post to the hub project's
+  // same-origin /_vercel/insights; on the vercel.app domain, to this one.
+  injectAnalytics();
+
   const data = await loadReplay();
   if (!data) return;
 
