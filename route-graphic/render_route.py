@@ -66,8 +66,8 @@ NOTES = [
 
 # named track sections (placed along the route at a distance, label sits inward)
 SEGMENTS = [
-    dict(along=5285, name="First Lynyrd Skynyrd"),    # at IMG_1860
-    dict(along=6229, name="Second Lynyrd Skynyrd"),   # at the NE footbridge
+    dict(along=5285, name="First Iynyrd Skynyrd", rot=-8, dist=0.13),   # at IMG_1860
+    dict(along=6229, name="Second Iynyrd Skynyrd", rot=10, dist=0.13),  # at NE footbridge
 ]
 
 BG     = "#faf8f3"   # warm paper
@@ -143,57 +143,38 @@ def main():
     fig, ax = plt.subplots(figsize=(13, 12.5), dpi=200)
     fig.patch.set_facecolor(BG); ax.set_facecolor(BG)
 
-    # ---- relief + water/paths, clipped to the inside of the loop ----
     loop = MplPath(np.column_stack([X, Y]))
-    clip = PathPatch(loop, transform=ax.transData, facecolor="none", edgecolor="none")
-    ax.add_patch(clip)
-    def clipped(a): a.set_clip_path(clip); return a
 
-    # soft green land base so the hillshade reads as vegetated ground, not rock
-    clipped(ax.add_patch(PathPatch(loop, facecolor="#e3e7d3", edgecolor="none",
-            zorder=-0.2)))
+    # ---- basemap raster, feathered out with distance from the track ----
+    # Full opacity inside the loop and right at the track; fades to paper as you
+    # move away on the outside. Paper (axes facecolor) shows through the fade.
+    if os.path.exists("basemap.png"):
+        from scipy.spatial import cKDTree
+        b = _json.load(open("basemap_bounds.json"))
+        base = np.asarray(Image.open("basemap.png").convert("RGB"))
+        H, W = base.shape[:2]
+        ext = [project(lat.mean(), b["west"])[0], project(lat.mean(), b["east"])[0],
+               project(b["south"], lon.mean())[1], project(b["north"], lon.mean())[1]]
 
-    if os.path.exists("relief.npz"):
-        rz = np.load("relief.npz"); hs = rz["hillshade"]
-        w, e, s, n = rz["bounds"]
-        ext = [project(lat.mean(), w)[0], project(lat.mean(), e)[0],
-               project(s, lon.mean())[1], project(n, lon.mean())[1]]
-        clipped(ax.imshow(hs, extent=ext, origin="upper", cmap="gray",
-                          vmin=0.20, vmax=1.08, alpha=0.32, zorder=0,
-                          interpolation="bilinear"))
+        # distance + inside test on a coarse grid, then upsample the alpha
+        gw, gh = 360, int(360*H/W)
+        gx = np.linspace(ext[0], ext[1], gw)
+        gy = np.linspace(ext[3], ext[2], gh)           # top->bottom (row0 = north)
+        GX, GY = np.meshgrid(gx, gy)
+        pts = np.column_stack([GX.ravel(), GY.ravel()])
+        dist = cKDTree(np.column_stack([X, Y])).query(pts)[0].reshape(gh, gw)
+        inside = loop.contains_points(pts).reshape(gh, gw)
 
-    def rings(el):
-        """(outer rings, inner rings) as lists of geometry point-lists."""
-        if el["type"] == "way" and el.get("geometry"):
-            return [el["geometry"]], []
-        if el["type"] == "relation":
-            o = [m["geometry"] for m in el.get("members", [])
-                 if m.get("role") == "outer" and m.get("geometry")]
-            i = [m["geometry"] for m in el.get("members", [])
-                 if m.get("role") == "inner" and m.get("geometry")]
-            return o, i
-        return [], []
+        NEAR, FAR = 20.0, 430.0                          # metres
+        t = np.clip((dist-NEAR)/(FAR-NEAR), 0, 1)
+        alpha = 1 - (t*t*(3-2*t))                        # smoothstep falloff
+        alpha[inside] = 1.0
+        alpha_full = np.asarray(Image.fromarray((alpha*255).astype(np.uint8))
+                                .resize((W, H), Image.BILINEAR))
+        rgba = np.dstack([base, alpha_full]).astype(np.uint8)
+        ax.imshow(rgba, extent=ext, origin="upper", zorder=0, interpolation="bilinear")
 
-    def fill(ring, color, z, a):
-        xy = np.array([project(p["lat"], p["lon"]) for p in ring])
-        clipped(ax.add_patch(PathPatch(MplPath(xy), facecolor=color,
-                edgecolor="none", alpha=a, zorder=z)))
-
-    if os.path.exists("osm.json"):
-        for el in _json.load(open("osm.json")).get("elements", []):
-            tg = el.get("tags", {})
-            if tg.get("natural") == "water":
-                o, i = rings(el)
-                for r in o: fill(r, "#a9cde4", 0.5, 0.92)     # water
-                for r in i: fill(r, "#d4dcc2", 0.55, 1.0)     # island
-            elif tg.get("natural") == "wetland":
-                for r in rings(el)[0]: fill(r, "#dde6cd", 0.4, 0.6)
-            elif tg.get("highway") and el.get("geometry"):
-                xy = np.array([project(p["lat"], p["lon"]) for p in el["geometry"]])
-                clipped(ax.plot(xy[:, 0], xy[:, 1], "-", color="#c4bdaf",
-                        lw=0.5, alpha=0.85, zorder=0.6)[0])
-
-    ax.plot(X, Y, "-", color=ROUTE, lw=2.4, solid_capstyle="round", zorder=2)
+    ax.plot(X, Y, "-", color=ROUTE, lw=2.6, solid_capstyle="round", zorder=2)
 
     for km in range(0, int(L//1000)+1):
         i = int(np.argmin(np.abs(cum-km*1000)))
@@ -264,19 +245,22 @@ def main():
                      color=col, lw=1.4, alpha=0.85,
                      connectionstyle="arc3,rad=0.05", zorder=5))
 
-    # ---- named track sections (label sits inward, toward the lake) ----
+    # ---- named track sections (label sits outside, line points in to track) ----
     for seg in SEGMENTS:
         i = int(np.argmin(np.abs(cum-seg["along"])))
         sx, sy = X[i], Y[i]
-        ang = math.atan2(sy-cy, sx-cx)
-        lx = sx - math.cos(ang)*xr*0.14
-        ly = sy - math.sin(ang)*yr*0.14
-        ax.plot([sx, lx], [sy, ly], "-", color="#8a7f6c", lw=0.9, alpha=0.8, zorder=5)
-        ax.plot(sx, sy, "o", color="#8a7f6c", ms=4, zorder=5)
+        ang = math.atan2(sy-cy, sx-cx) + math.radians(seg.get("rot", 0))
+        d = seg.get("dist", 0.13)
+        lx = sx + math.cos(ang)*xr*d            # just outside the loop
+        ly = sy + math.sin(ang)*yr*d
+        ax.annotate("", xy=(sx, sy), xytext=(lx, ly),
+                    arrowprops=dict(arrowstyle="-", color="#8a7f6c", lw=1.0,
+                                    alpha=0.85), zorder=5)
+        ax.plot(sx, sy, "o", color="#6a5f4c", ms=5, mec="white", mew=1, zorder=6)
         ax.annotate(seg["name"], (lx, ly), fontsize=10, style="italic",
-                    weight="bold", color="#6a5f4c", ha="center", va="center",
-                    zorder=8, bbox=dict(boxstyle="round,pad=0.25", fc=BG,
-                                        ec="#8a7f6c", lw=0.8, alpha=0.9))
+                    weight="bold", color="#5a4f3c", ha="center", va="center",
+                    zorder=8, bbox=dict(boxstyle="round,pad=0.3", fc=BG,
+                                        ec="#8a7f6c", lw=0.9, alpha=0.95))
 
     # ---- limits ----
     xs = list(X)+oxs; ys = list(Y)+oys
@@ -296,11 +280,15 @@ def main():
     for t in leg.get_texts(): t.set_color(INK)
 
     n_haz = sum(1 for d in photos if d["kind"] == "hazard")
-    fig.suptitle("Herdsman Lake loop — water hazard reconnaissance",
+    fig.suptitle("Herdsman Lake Loop — Water Hazard Reconnaissance",
                  x=0.5, y=0.95, fontsize=18, weight="bold", color=INK)
     ax.set_title(f"FCTC Cup route · {L/1000:.2f} km · {n_haz} water hazards · "
                  f"{len(NOTES)} to verify · recon {datetime.date.today():%-d %b %Y}",
                  fontsize=10.5, color="#6b6660", pad=16)
+
+    ax.annotate("Basemap © OpenStreetMap · CARTO", (0.995, 0.004),
+                xycoords="axes fraction", ha="right", va="bottom",
+                fontsize=6.5, color="#a39c8f")
 
     fig.savefig(f"{OUT}.pdf", facecolor=BG, bbox_inches="tight")
     fig.savefig(f"{OUT}.jpg", dpi=150, facecolor=BG, bbox_inches="tight")
