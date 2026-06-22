@@ -70,7 +70,7 @@ NOTES = [
 
 # named track sections (placed along the route at a distance, label sits inward)
 SEGMENTS = [
-    dict(along=5285, name="First Iynyrd Skynyrd", rot=-8, dist=0.13, dy=0.07),   # at IMG_1860
+    dict(along=5285, name="First Iynyrd Skynyrd", rot=-8, dist=0.13, dy=0.17),   # at IMG_1860
     dict(along=6229, name="Second Iynyrd Skynyrd", rot=10, dist=0.13),  # at NE footbridge
 ]
 
