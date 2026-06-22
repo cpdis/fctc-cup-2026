@@ -19,23 +19,27 @@ import matplotlib.pyplot as plt
 from matplotlib import font_manager as fm
 
 
-def setup_font():
-    """Use Berkeley Mono if the licensed font is dropped in fonts/, else a
-    bundled monospace fallback. Register every ttf/otf found, then pick."""
+def setup_fonts():
+    """Two-font system (canvas-design type pairing):
+      HEAD  — National Park (the trail-map signage voice): title, place names
+      MONO  — Berkeley Mono if dropped in fonts/, else a bundled mono: all data
+    Registers every face found, then resolves family names."""
     dirs = ["fonts", "/mnt/skills/examples/canvas-design/canvas-fonts"]
     for d in dirs:
         if os.path.isdir(d):
-            for f in glob.glob(os.path.join(d, "*.tt[fc]")) + glob.glob(os.path.join(d, "*.otf")):
+            for f in (glob.glob(os.path.join(d, "*.tt[fc]"))
+                      + glob.glob(os.path.join(d, "*.otf"))):
                 try: fm.fontManager.addfont(f)
                 except Exception: pass
     names = {f.name for f in fm.fontManager.ttflist}
-    for pref in ("Berkeley Mono", "TX-02", "JetBrains Mono", "IBM Plex Mono",
-                 "Geist Mono", "DejaVu Sans Mono"):
-        if pref in names:
-            matplotlib.rcParams["font.family"] = pref
-            print(f"  font: {pref}")
-            return pref
-    return None
+    def pick(prefs):
+        return next((p for p in prefs if p in names), "DejaVu Sans")
+    mono = pick(["Berkeley Mono", "TX-02", "Geist Mono", "JetBrains Mono",
+                 "IBM Plex Mono", "DejaVu Sans Mono"])
+    head = pick(["National Park", mono])
+    matplotlib.rcParams["font.family"] = mono
+    print(f"  fonts: head={head}  mono={mono}")
+    return head, mono
 from matplotlib.offsetbox import OffsetImage, AnnotationBbox, TextArea, VPacker
 from matplotlib.patches import FancyArrowPatch, PathPatch
 from matplotlib.path import Path as MplPath
@@ -107,7 +111,11 @@ def gps_of(path):
 
 
 def main():
-    setup_font()
+    HEAD, MONO = setup_fonts()
+    def fp(role="mono", size=10, weight="normal"):
+        return fm.FontProperties(family=HEAD if role == "head" else MONO,
+                                 size=size, weight=weight)
+
     lat, lon = load_route()
     m_per_lon = math.cos(math.radians(lat.mean()))*111320
     X = (lon-lon.mean())*m_per_lon
@@ -180,7 +188,8 @@ def main():
         i = int(np.argmin(np.abs(cum-km*1000)))
         ax.plot(X[i], Y[i], "o", color=INK, ms=3, zorder=3)
         ax.annotate(f"{km}", (X[i], Y[i]), textcoords="offset points",
-                    xytext=(4, 4), fontsize=7, color="#8a8580", zorder=3)
+                    xytext=(4, 4), color="#8a8580", zorder=3,
+                    fontproperties=fp("mono", 7))
 
     # direction of travel
     i2 = int(np.argmin(np.abs(cum-120)))
@@ -188,7 +197,8 @@ def main():
                 arrowprops=dict(arrowstyle="-|>", color=OK, lw=2), zorder=4)
     ax.plot(X[0], Y[0], "s", color=OK, ms=11, zorder=4)
     ax.annotate("START / FINISH", (X[0], Y[0]), textcoords="offset points",
-                xytext=(12, -2), fontsize=9.5, weight="bold", color=OK, zorder=4)
+                xytext=(12, -2), color=OK, zorder=4,
+                fontproperties=fp("head", 12, "bold"))
 
     xr = X.max()-X.min(); yr = Y.max()-Y.min()
     cx = (X.max()+X.min())/2; cy = (Y.max()+Y.min())/2
@@ -217,8 +227,9 @@ def main():
         oxs.append(ox); oys.append(oy)
         img = OffsetImage(np.asarray(card(d["path"], col)), zoom=0.40)
         l1 = TextArea(f"IMG_{d['token']}  ·  {d['along']/1000:.2f} km",
-                      textprops=dict(weight="bold", color=col, size=11))
-        l2 = TextArea(d["cap"], textprops=dict(color=INK, size=9))
+                      textprops=dict(color=col, fontproperties=fp("mono", 11, "bold")))
+        l2 = TextArea(d["cap"],
+                      textprops=dict(color=INK, fontproperties=fp("head", 11)))
         pack = VPacker(children=[img, l1, l2], align="center", pad=0, sep=5)
         ax.add_artist(AnnotationBbox(pack, (ox, oy), frameon=False, zorder=7, pad=0))
         ax.add_patch(FancyArrowPatch((ox, oy), (d["x"], d["y"]), arrowstyle="-",
@@ -235,9 +246,9 @@ def main():
         ox = cx + math.cos(ang)*xr*1.10; oy = cy + math.sin(ang)*yr*1.10
         oxs.append(ox); oys.append(oy)
         title = TextArea(f"{n['title']}  ·  {along/1000:.2f} km",
-                         textprops=dict(weight="bold", color=col, size=11))
-        body = TextArea("\n".join(textwrap.wrap(n["body"], 30)),
-                        textprops=dict(color=INK, size=9))
+                         textprops=dict(color=col, fontproperties=fp("head", 12, "bold")))
+        body = TextArea("\n".join(textwrap.wrap(n["body"], 28)),
+                        textprops=dict(color=INK, fontproperties=fp("head", 10)))
         pack = VPacker(children=[title, body], align="center", pad=6, sep=4)
         ax.add_artist(AnnotationBbox(pack, (ox, oy), frameon=True, zorder=7, pad=0.4,
                       bboxprops=dict(edgecolor=col, lw=2, facecolor="white")))
@@ -257,10 +268,10 @@ def main():
                     arrowprops=dict(arrowstyle="-", color="#8a7f6c", lw=1.0,
                                     alpha=0.85), zorder=5)
         ax.plot(sx, sy, "o", color="#6a5f4c", ms=5, mec="white", mew=1, zorder=6)
-        ax.annotate(seg["name"], (lx, ly), fontsize=10, style="italic",
-                    weight="bold", color="#5a4f3c", ha="center", va="center",
-                    zorder=8, bbox=dict(boxstyle="round,pad=0.3", fc=BG,
-                                        ec="#8a7f6c", lw=0.9, alpha=0.95))
+        ax.annotate(seg["name"], (lx, ly), color="#5a4f3c", ha="center", va="center",
+                    zorder=8, fontproperties=fp("head", 11, "bold"),
+                    bbox=dict(boxstyle="round,pad=0.3", fc=BG,
+                              ec="#8a7f6c", lw=0.9, alpha=0.95))
 
     # ---- limits ----
     xs = list(X)+oxs; ys = list(Y)+oys
@@ -275,20 +286,20 @@ def main():
         Line2D([0],[0], marker="D", color="none", markerfacecolor=VERIFY, markersize=11, label="Verify before race"),
     ]
     leg = ax.legend(handles=handles, loc="upper left", frameon=False,
-                    fontsize=10.5, handletextpad=0.4, labelspacing=0.8,
-                    bbox_to_anchor=(0.0, 1.0))
+                    handletextpad=0.4, labelspacing=0.8, bbox_to_anchor=(0.0, 1.0),
+                    prop=fp("mono", 10.5))
     for t in leg.get_texts(): t.set_color(INK)
 
     n_haz = sum(1 for d in photos if d["kind"] == "hazard")
     fig.suptitle("Herdsman Lake Loop — Water Hazard Reconnaissance",
-                 x=0.5, y=0.95, fontsize=18, weight="bold", color=INK)
+                 x=0.5, y=0.95, color=INK, fontproperties=fp("head", 24, "bold"))
     ax.set_title(f"FCTC Cup route · {L/1000:.2f} km · {n_haz} water hazards · "
                  f"{len(NOTES)} to verify · recon {datetime.date.today():%-d %b %Y}",
-                 fontsize=10.5, color="#6b6660", pad=16)
+                 color="#6b6660", pad=16, fontproperties=fp("mono", 10.5))
 
     ax.annotate("Basemap © OpenStreetMap · CARTO", (0.995, 0.004),
                 xycoords="axes fraction", ha="right", va="bottom",
-                fontsize=6.5, color="#a39c8f")
+                color="#a39c8f", fontproperties=fp("mono", 6.5))
 
     fig.savefig(f"{OUT}.pdf", facecolor=BG, bbox_inches="tight")
     fig.savefig(f"{OUT}.jpg", dpi=150, facecolor=BG, bbox_inches="tight")

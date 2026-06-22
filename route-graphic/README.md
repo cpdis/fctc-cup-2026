@@ -14,8 +14,15 @@ their exact GPS spots, built to plan the race line around impassible water.
 - **`geotag.py`** — writes GPS EXIF into the photos that lost it (IMG_0193, IMG_0194,
   IMG_1861), producing `geotagged/` copies.
 - **`photos/`** — the four geotagged photos drawn on the map.
-- **`fonts/`** — drop the licensed **Berkeley Mono** here to use it; otherwise the
-  script falls back to a bundled monospace.
+- **`fonts/`** — drop the licensed **Berkeley Mono** here and it becomes the data
+  typeface automatically; otherwise the mono role falls back to Geist Mono.
+
+## Type system (canvas-design pairing)
+
+- **Headings & place names** — *National Park* (the U.S. park-signage typeface):
+  title, START/FINISH, section names, photo captions, the NE-footbridge note.
+- **Data** — monospace (*Berkeley Mono* if present, else *Geist Mono*): photo ids,
+  distances, the subtitle, legend, km ticks, attribution.
 
 ## Hazards (distance along route)
 
