@@ -66,7 +66,7 @@ NOTES = [
 
 # named track sections (placed along the route at a distance, label sits inward)
 SEGMENTS = [
-    dict(along=5285, name="First Iynyrd Skynyrd", rot=-8, dist=0.13),   # at IMG_1860
+    dict(along=5285, name="First Iynyrd Skynyrd", rot=-8, dist=0.13, dy=0.07),   # at IMG_1860
     dict(along=6229, name="Second Iynyrd Skynyrd", rot=10, dist=0.13),  # at NE footbridge
 ]
 
@@ -252,7 +252,7 @@ def main():
         ang = math.atan2(sy-cy, sx-cx) + math.radians(seg.get("rot", 0))
         d = seg.get("dist", 0.13)
         lx = sx + math.cos(ang)*xr*d            # just outside the loop
-        ly = sy + math.sin(ang)*yr*d
+        ly = sy + math.sin(ang)*yr*d + yr*seg.get("dy", 0)
         ax.annotate("", xy=(sx, sy), xytext=(lx, ly),
                     arrowprops=dict(arrowstyle="-", color="#8a7f6c", lw=1.0,
                                     alpha=0.85), zorder=5)
