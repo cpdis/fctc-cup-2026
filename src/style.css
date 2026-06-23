@@ -152,6 +152,27 @@ body {
   letter-spacing: 0.18em;
   color: var(--accent-ink);
 }
+/* Pre-race badge: makes clear the running figures are predictions, not results. */
+.masthead-status {
+  align-self: center;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: var(--accent-ink);
+  background: var(--glass);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 2px 8px;
+  white-space: nowrap;
+}
+/* On narrow phones the pill needs the room, so drop the decorative sub — but
+   only pre-race, when the pill is actually present (:has scopes it there). */
+@media (max-width: 600px) {
+  #masthead:has(.masthead-status) .masthead-sub {
+    display: none;
+  }
+}
 
 /* Theme toggle — lives in the masthead, which is pointer-events: none */
 #theme-toggle {
@@ -593,6 +614,10 @@ body {
 .lb-delta[data-sign='running'] {
   color: var(--ink-faint);
   font-style: italic;
+}
+/* Pre-race start list: the delta column shows each runner's predicted time. */
+.lb-delta[data-sign='pred'] {
+  color: var(--accent-ink);
 }
 .lb-row.winner {
   background: var(--winner-row);

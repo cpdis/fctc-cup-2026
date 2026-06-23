@@ -48,6 +48,16 @@ async function main(): Promise<void> {
   const data = await loadReplay();
   if (!data) return;
 
+  // Pre-race (predictions only, no GPS/finish times yet): the field runs at
+  // predicted pace, the board is a start list, and there's no result to reveal.
+  const prerace = data.race.prerace ?? false;
+  if (prerace) {
+    const status = document.createElement('span');
+    status.className = 'masthead-status';
+    status.textContent = 'Predicted pace';
+    document.getElementById('masthead')?.appendChild(status);
+  }
+
   const mapEl = document.getElementById('map') as HTMLElement;
   const handle = createMap(mapEl, data.race, data.route);
 
@@ -100,13 +110,15 @@ async function main(): Promise<void> {
   const engine = createEngine(handle.map, data);
   frames.push((t) => engine.render(t));
 
-  // Figures ride the engine's positions, so they must update after it.
+  // Figures ride the engine's positions, so they must update after it. Pre-race
+  // the whole field runs (everyone is noData but animated at predicted pace).
   const figures = createFigures(
     handle.map,
-    data.runners.filter((r) => !r.noData),
+    prerace ? data.runners : data.runners.filter((r) => !r.noData),
     (id) => engine.positionOf(id),
     (id) => setSelection(selectedId === id ? null : id),
     winnerId,
+    prerace,
   );
   frames.push((t) => figures.update(t));
   // The style load can outlast the boot dirty window; without this the engine
@@ -148,6 +160,7 @@ async function main(): Promise<void> {
     document.getElementById('leaderboard') as HTMLElement,
     data.runners,
     { onSelect: (id) => setSelection(selectedId === id ? null : id) },
+    prerace,
   );
   frames.push((t) => leaderboard.update(t));
 
@@ -157,15 +170,20 @@ async function main(): Promise<void> {
   );
 
   // Gap chart. On phones it lives at the top of the bottom sheet; on desktop
-  // it's a wide strip above the transport (CSS owns position).
-  const gapEl = document.getElementById('gapchart') as HTMLElement;
-  if (matchMedia('(max-width: 900px)').matches) {
-    const panel = document.getElementById('panel') as HTMLElement;
-    panel.insertBefore(gapEl, document.getElementById('leaderboard'));
-    gapEl.classList.add('in-sheet');
+  // it's a wide strip above the transport (CSS owns position). Skipped pre-race:
+  // with no actual times the gap is identically zero, so there's nothing to plot
+  // (the empty #gapchart hides itself via CSS).
+  let gapChart: ReturnType<typeof createGapChart> | null = null;
+  if (!prerace) {
+    const gapEl = document.getElementById('gapchart') as HTMLElement;
+    if (matchMedia('(max-width: 900px)').matches) {
+      const panel = document.getElementById('panel') as HTMLElement;
+      panel.insertBefore(gapEl, document.getElementById('leaderboard'));
+      gapEl.classList.add('in-sheet');
+    }
+    gapChart = createGapChart(gapEl, data, clock);
+    frames.push((t) => gapChart!.update(t));
   }
-  const gapChart = createGapChart(gapEl, data, clock);
-  frames.push((t) => gapChart.update(t));
 
   // --- finish pops ---------------------------------------------------------
   // The moment a runner crosses the line, their name + delta floats up from
@@ -269,7 +287,7 @@ async function main(): Promise<void> {
     engine.setSelected(id);
     figures.setSelected(id);
     leaderboard.setSelected(id);
-    gapChart.setSelected(id);
+    gapChart?.setSelected(id);
     if (id) {
       const r = runnersById.get(id)!;
       labelEl.innerHTML = `<span class="rl-name">${r.name}</span><span class="rl-delta"></span>`;

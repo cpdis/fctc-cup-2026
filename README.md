@@ -99,6 +99,18 @@ morning is just:
 A runner with neither a GPX nor a fallback is shown as "no data" and never breaks
 the build.
 
+### Pre-race preview
+
+Before the gun there are no GPS tracks or finish times — only predictions. When
+**no** runner has any real data, the bake marks the replay `prerace` and the site
+switches to a **predicted-pace preview**: the whole field runs the loop at each
+runner's own predicted pace, the leaderboard becomes a **start list** sorted by
+predicted time, the gap chart is hidden (the gap would be identically zero), and
+a "Predicted pace" badge sits in the masthead. There's no winner reveal — there's
+no result yet. The moment any GPS or fallback finish lands, `prerace` flips off
+and the full result replay returns. So race morning is: drop predictions in now,
+add tracks/fallbacks on the day.
+
 ## Basemap
 
 The basemap is a **self-hosted Protomaps PMTiles** extract around the lake —

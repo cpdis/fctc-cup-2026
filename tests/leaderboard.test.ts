@@ -81,4 +81,37 @@ describe('createLeaderboard', () => {
     lb.setSelected(null);
     expect(container.dataset.sel).toBe('');
   });
+
+  describe('pre-race start list', () => {
+    // All no-data (no actual time) -> the board is a start list, not results.
+    const startList = [
+      runner('cam', 130_000, null),
+      runner('aaron', 90_000, null),
+      runner('bram', 110_000, null),
+    ];
+
+    it('orders by predicted finish and shows each predicted time', () => {
+      const lb = createLeaderboard(container, startList, { onSelect: () => {} }, true);
+      lb.update(0);
+      expect(rowIds(container)).toEqual(['aaron', 'bram', 'cam']);
+      const deltas = Array.from(container.querySelectorAll('.lb-delta')).map((e) => e.textContent);
+      expect(deltas).toEqual(['1:30', '1:50', '2:10']);
+      const ranks = Array.from(container.querySelectorAll('.lb-rank')).map((e) => e.textContent);
+      expect(ranks).toEqual(['1', '2', '3']);
+      expect(
+        (container.querySelector('[data-id="aaron"] .lb-delta') as HTMLElement).dataset.sign,
+      ).toBe('pred');
+    });
+
+    it('never re-sorts on update (no live result to form) and still selects', () => {
+      const lb = createLeaderboard(container, startList, { onSelect: () => {} }, true);
+      lb.update(999_000);
+      expect(rowIds(container)).toEqual(['aaron', 'bram', 'cam']);
+      lb.setSelected('bram');
+      expect(container.dataset.sel).toBe('bram');
+      expect(
+        (container.querySelector('[data-id="bram"]') as HTMLElement).classList.contains('selected'),
+      ).toBe(true);
+    });
+  });
 });

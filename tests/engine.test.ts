@@ -143,6 +143,53 @@ describe('createEngine batched updates', () => {
     engine.render(1000);
     expect(engine.positionsSnapshot()).toHaveLength(2);
   });
+
+  // Pre-race: every runner is no-data, but the engine still animates the whole
+  // field at predicted pace (the prediction is the run) and parks them by
+  // predicted finish.
+  function preraceRunner(id: string, predicted: number): Runner {
+    return {
+      id,
+      name: id,
+      color: '#fff',
+      predictedFinishMs: predicted,
+      actualFinishMs: null,
+      deltaMs: null,
+      hasGps: false,
+      noData: true,
+    };
+  }
+  function preraceData(): ReplayData {
+    return {
+      race: { ...data.race, durationMs: 4000, prerace: true },
+      route: lut(),
+      runners: [preraceRunner('a', 2000), preraceRunner('b', 4000)],
+    };
+  }
+
+  it('pre-race: animates the whole no-data field at predicted pace', () => {
+    const map = fakeMap();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const engine = createEngine(map as any, preraceData());
+    engine.render(1000);
+    expect(engine.positionsSnapshot()).toHaveLength(2);
+    expect(engine.positionOf('a')![0]).toBeCloseTo(500 / 111320, 6); // 1000/2000 of L
+    expect(engine.positionOf('b')![0]).toBeCloseTo(250 / 111320, 6); // 1000/4000 of L
+  });
+
+  it('pre-race: parks a runner at their predicted finish in the corral', () => {
+    const map = fakeMap();
+    const pdata = preraceData();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const engine = createEngine(map as any, pdata);
+    engine.render(3000); // a (pred 2000) done; b (pred 4000) still running
+    const slots = corralSlots(
+      lut(),
+      pdata.runners.map((r) => ({ ...r, actualFinishMs: r.predictedFinishMs })),
+    );
+    expect(engine.positionOf('a')).toEqual(slots.get('a'));
+    expect(engine.positionOf('b')![0]).toBeCloseTo(750 / 111320, 6); // 3000/4000 of L
+  });
 });
 
 describe('corralSlots', () => {

@@ -120,8 +120,17 @@ interface RunnerView {
 export function createEngine(map: MlMap, data: ReplayData): EngineHandle {
   const { route } = data;
   const L = route.lengthM;
-  const active = data.runners.filter((r) => !r.noData);
-  const corral = corralSlots(route, active);
+  // Pre-race: nobody has real data, so we animate the whole field at their
+  // predicted pace (the prediction *is* the run). Every runner is noData, so
+  // we keep them all instead of filtering them out, and treat the predicted
+  // finish as the finish — for the corral, the trail, and the parked pose.
+  const prerace = data.race.prerace ?? false;
+  const active = prerace ? data.runners : data.runners.filter((r) => !r.noData);
+  // Corral order: by real finish in a race, by predicted finish pre-race.
+  const corral = corralSlots(
+    route,
+    prerace ? active.map((r) => ({ ...r, actualFinishMs: r.predictedFinishMs })) : active,
+  );
 
   const views: RunnerView[] = active.map((runner) => ({
     runner,
@@ -176,7 +185,9 @@ export function createEngine(map: MlMap, data: ReplayData): EngineHandle {
     for (let k = 0; k < views.length; k++) {
       const v = views[k];
       const r = v.runner;
-      const finished = r.actualFinishMs !== null && raceMs >= r.actualFinishMs;
+      // The "finish" is the real finish in a race, the predicted finish pre-race.
+      const finishMs = prerace ? r.predictedFinishMs : r.actualFinishMs;
+      const finished = finishMs !== null && raceMs >= finishMs;
       const ghostDone = raceMs >= r.predictedFinishMs;
 
       // Entrance: staggered scale/opacity in, once, at the start line.
@@ -185,25 +196,34 @@ export function createEngine(map: MlMap, data: ReplayData): EngineHandle {
       );
       const dim = selected && r.id !== selected ? DIM : 1;
 
+      // Progress along the route: actual GPS/finish in a race, predicted pace
+      // pre-race (where the prediction is all we have to drive the figure).
+      const prog = prerace
+        ? ghostProgressAt(r, raceMs, L)
+        : iconProgressAt(r, raceMs, L);
+
       // Icon position: on course while running, parked in the corral once
       // finished. The figure marker (src/figures.ts) reads this via positionOf.
-      const ic = finished
-        ? (corral.get(r.id) as LngLat)
-        : progressToCoord(route, iconProgressAt(r, raceMs, L));
+      const ic = finished ? (corral.get(r.id) as LngLat) : progressToCoord(route, prog);
       positions.set(r.id, ic);
 
-      // Ghost (constant predicted pace): fades out once it reaches the line,
-      // so phantoms don't pile up on the finish point.
-      const gp = ghostProgressAt(r, raceMs, L);
-      (v.ghost.geometry as Point).coordinates = progressToCoord(route, gp);
-      v.ghost.properties!.opacity = ghostDone ? 0 : 0.32 * dim * e;
-      v.ghost.properties!.r = GHOST_R * (0.85 + 0.15 * e);
+      // Ghost (constant predicted pace): a faint echo behind the real run. It's
+      // redundant pre-race (it would sit exactly under the figure), so hide it
+      // then; otherwise it fades out at the line so phantoms don't pile up.
+      if (prerace) {
+        v.ghost.properties!.opacity = 0;
+      } else {
+        const gp = ghostProgressAt(r, raceMs, L);
+        (v.ghost.geometry as Point).coordinates = progressToCoord(route, gp);
+        v.ghost.properties!.opacity = ghostDone ? 0 : 0.32 * dim * e;
+        v.ghost.properties!.r = GHOST_R * (0.85 + 0.15 * e);
+      }
 
       // Trail behind the icon; gone once parked.
       if (finished) {
         v.trail.geometry.coordinates = [];
       } else {
-        v.trail.geometry.coordinates = trailCoords(iconProgressAt(r, raceMs, L));
+        v.trail.geometry.coordinates = trailCoords(prog);
         v.trail.properties!.opacity = 0.55 * dim * e;
       }
     }

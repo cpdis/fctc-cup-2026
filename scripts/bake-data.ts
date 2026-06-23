@@ -111,6 +111,11 @@ function main(): void {
     runners.push(runner);
   });
 
+  // Pre-race when no runner has any real data yet (predictions only): the
+  // runtime renders a predicted-pace preview instead of an empty map. Flips to
+  // false the moment any GPS or fallback finish gets baked in.
+  const prerace = runners.length > 0 && runners.every((r) => r.actualFinishMs === null);
+
   const data: ReplayData = {
     race: {
       routeLengthM: round(lut.lengthM, 1),
@@ -118,6 +123,7 @@ function main(): void {
       startLngLat: [round(start[0], 6), round(start[1], 6)],
       bounds: bounds.map((b) => round(b, 6)) as [number, number, number, number],
       dtMs: DT_MS,
+      prerace,
     },
     route: {
       stepM: lut.stepM,
@@ -136,7 +142,7 @@ function main(): void {
   const fb = runners.filter((r) => !r.hasGps && !r.noData).length;
   const nd = runners.filter((r) => r.noData).length;
   console.log(
-    `Baked ${OUT}\n  route: ${data.route.count} samples, ${(data.race.routeLengthM / 1000).toFixed(2)} km\n  runners: ${runners.length} (${gps} GPS, ${fb} finish-only, ${nd} no-data)\n  duration: ${(data.race.durationMs / 60000).toFixed(1)} min`,
+    `Baked ${OUT}\n  route: ${data.route.count} samples, ${(data.race.routeLengthM / 1000).toFixed(2)} km\n  runners: ${runners.length} (${gps} GPS, ${fb} finish-only, ${nd} no-data)\n  duration: ${(data.race.durationMs / 60000).toFixed(1)} min${prerace ? '\n  mode: PRE-RACE (predicted-pace preview — no results yet)' : ''}`,
   );
 }
 

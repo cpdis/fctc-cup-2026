@@ -16,6 +16,7 @@ export function createLeaderboard(
   container: HTMLElement,
   runners: Runner[],
   opts: { onSelect: (id: string) => void },
+  prerace = false,
 ): LeaderboardHandle {
   const winnerId = finalWinnerId(runners);
   const rows = new Map<string, HTMLButtonElement>();
@@ -33,6 +34,29 @@ export function createLeaderboard(
     row.addEventListener('click', () => opts.onSelect(r.id));
     rows.set(r.id, row);
     container.appendChild(row);
+  }
+
+  function setSelected(id: string | null): void {
+    container.dataset.sel = id ?? '';
+    for (const [rid, el] of rows) el.classList.toggle('selected', rid === id);
+  }
+
+  // Pre-race: there are no results, so the board is a static start list ordered
+  // by predicted finish, with each runner's prediction in the delta column.
+  if (prerace) {
+    container.dataset.prerace = 'true';
+    [...runners]
+      .sort((a, b) => a.predictedFinishMs - b.predictedFinishMs)
+      .forEach((r, i) => {
+        const row = rows.get(r.id)!;
+        container.appendChild(row); // reorder into start-list order
+        row.querySelector('.lb-rank')!.textContent = String(i + 1);
+        const deltaEl = row.querySelector('.lb-delta') as HTMLElement;
+        deltaEl.textContent = formatClock(r.predictedFinishMs);
+        deltaEl.dataset.sign = 'pred';
+        row.title = `${r.name} · predicted ${formatClock(r.predictedFinishMs)}`;
+      });
+    return { update() {}, setSelected };
   }
 
   let lastOrderKey = '';
@@ -85,10 +109,7 @@ export function createLeaderboard(
       }
     },
 
-    setSelected(id: string | null): void {
-      container.dataset.sel = id ?? '';
-      for (const [rid, el] of rows) el.classList.toggle('selected', rid === id);
-    },
+    setSelected,
   };
 }
 

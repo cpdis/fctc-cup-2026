@@ -1,57 +1,87 @@
 [
   {
-    "id": "ada",
-    "name": "Ada",
-    "predicted": "30:20"
+    "id": "aaron",
+    "name": "Aaron",
+    "predicted": "35:52"
   },
   {
-    "id": "bram",
-    "name": "Bram",
-    "predicted": "33:16"
+    "id": "cam",
+    "name": "Cam",
+    "predicted": "38:42"
   },
   {
-    "id": "cleo",
-    "name": "Cleo",
-    "predicted": "34:26"
+    "id": "shane",
+    "name": "Shane",
+    "predicted": "42:30"
   },
   {
-    "id": "dane",
-    "name": "Dane",
-    "predicted": "37:25"
+    "id": "celeste",
+    "name": "Celeste",
+    "predicted": "41:38"
   },
   {
-    "id": "esi",
-    "name": "Esi",
-    "predicted": "35:45"
+    "id": "liam",
+    "name": "Liam",
+    "predicted": "39:21"
   },
   {
-    "id": "finn",
-    "name": "Finn",
-    "predicted": "42:54"
+    "id": "wes",
+    "name": "Wes",
+    "predicted": "39:05"
   },
   {
-    "id": "gia",
-    "name": "Gia",
-    "predicted": "33:44"
+    "id": "rhys",
+    "name": "Rhys",
+    "predicted": "40:15"
   },
   {
-    "id": "hugo",
-    "name": "Hugo",
-    "predicted": "34:15"
+    "id": "luke",
+    "name": "Luke",
+    "predicted": "41:23"
   },
   {
-    "id": "ivy",
-    "name": "Ivy",
-    "predicted": "39:23"
+    "id": "grant",
+    "name": "Grant",
+    "predicted": "41:17"
   },
   {
-    "id": "jonas",
-    "name": "Jonas",
-    "predicted": "39:56"
+    "id": "alex",
+    "name": "Alex 👑",
+    "predicted": "36:46"
   },
   {
-    "id": "kit",
-    "name": "Kit",
-    "predicted": "44:33"
+    "id": "alex-jtc",
+    "name": "Alex JTC",
+    "predicted": "42:50"
+  },
+  {
+    "id": "joe",
+    "name": "Joe",
+    "predicted": "40:00"
+  },
+  {
+    "id": "claire",
+    "name": "Claire",
+    "predicted": "42:30"
+  },
+  {
+    "id": "anna",
+    "name": "Anna",
+    "predicted": "37:24"
+  },
+  {
+    "id": "scott",
+    "name": "Scott",
+    "predicted": "36:00"
+  },
+  {
+    "id": "col",
+    "name": "Col",
+    "predicted": "30:50"
+  },
+  {
+    "id": "deano",
+    "name": "Deano",
+    "predicted": "39:36"
   }
 ]

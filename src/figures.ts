@@ -55,6 +55,7 @@ export function createFigures(
   positionOf: (id: string) => LngLat | undefined,
   onSelect: (id: string) => void,
   winnerId?: string | null,
+  prerace = false,
 ): FiguresHandle {
   // Stride cadence follows predicted pace: the bold predictions scurry, the
   // cautious ones lope. Mapped across the field to 0.46–0.68 s per stride.
@@ -110,7 +111,10 @@ export function createFigures(
       }
       f.lastLng = pos[0];
 
-      const done = f.runner.actualFinishMs !== null && raceMs >= f.runner.actualFinishMs;
+      // Pre-race, a runner "finishes" (and stops the run-cycle to stand in the
+      // corral) at their predicted time, since there's no real finish yet.
+      const finishMs = prerace ? f.runner.predictedFinishMs : f.runner.actualFinishMs;
+      const done = finishMs !== null && raceMs >= finishMs;
       if (done !== f.done) {
         f.done = done;
         f.el.classList.toggle('done', done);

@@ -26,6 +26,13 @@ export interface RaceMeta {
   bounds: [number, number, number, number];
   /** Sample spacing of every runner's progressM array, in ms. */
   dtMs: number;
+  /**
+   * Pre-race: nobody has GPS or a finish time yet, so there's no result to
+   * show. The runtime falls back to a predicted-pace preview — every runner
+   * runs the loop at their own predicted pace and the leaderboard is a start
+   * list. Flips to false automatically the moment any real data is baked in.
+   */
+  prerace?: boolean;
 }
 
 /** Baked actual-position samples for a GPS runner, on a uniform time grid. */

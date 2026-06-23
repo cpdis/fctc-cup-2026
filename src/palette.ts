@@ -1,6 +1,8 @@
 // Runner colours: bright, saturated, and spaced around the hue wheel so they
-// stay distinguishable on the dark basemap. 15 is near the human limit for
-// at-a-glance distinctness, so legibility leans on label-on-select (U6) too.
+// stay distinguishable on the dark basemap. 17 is past the comfortable
+// at-a-glance limit, but the 2026 field is 17 runners and every one deserves a
+// unique colour, so legibility leans on label-on-select (U6) for the closest
+// pairs. The last two (emerald, crimson) fill the widest gaps on the wheel.
 export const PALETTE: readonly string[] = [
   '#ff5a36', // vermilion
   '#ffd23f', // gold
@@ -17,6 +19,8 @@ export const PALETTE: readonly string[] = [
   '#43f0c7', // turquoise
   '#ff7a5c', // coral
   '#8d7bff', // indigo
+  '#2ee86b', // emerald
+  '#ff3355', // crimson
 ];
 
 export function colorFor(index: number): string {
