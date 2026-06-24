@@ -32,7 +32,8 @@
   {
     "id": "rhys",
     "name": "Rhys",
-    "predicted": "40:15"
+    "predicted": "40:15",
+    "dns": true
   },
   {
     "id": "luke",
@@ -62,7 +63,8 @@
   {
     "id": "claire",
     "name": "Claire",
-    "predicted": "42:30"
+    "predicted": "42:30",
+    "dns": true
   },
   {
     "id": "anna",

@@ -1,23 +1,33 @@
-// Build-time orchestrator: route + roster + tracks/fallbacks -> public/replay.json.
-// Run with `npm run bake`. This is the only thing that has to happen on race
-// morning: drop GPX into data/tracks/, note any finish-only runners in
-// data/fallbacks.json, run bake, deploy.
+// Build-time orchestrator: route + roster + results/tracks -> public/replay.json.
+// Run with `npm run bake`. Race day: drop GPX into data/tracks/, put the
+// OFFICIAL finish times in data/results.json, run bake, deploy.
+//
+// Source of truth: data/results.json (id -> official "mm:ss") is authoritative
+// for every finish time, delta, and standing. A GPX, when present, only draws
+// the on-map MOTION; its timing is stretched to land on the official finish, so
+// the Cup result never depends on GPS quirks (Strava strips timestamps from
+// other people's exports; watches drift; people forget to stop them).
 
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseGpxFile } from './gpx';
 import { buildRoute } from './route';
-import { matchTrack } from './match';
+import { matchTrack, matchToFinish } from './match';
 import { colorFor } from '../src/palette';
-import type { ReplayData, Runner } from '../src/types';
+import { haversineMeters } from '../src/geo';
+import type { LngLat, ReplayData, Runner, RunnerActual } from '../src/types';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const CANONICAL = resolve(ROOT, 'Inaugural_FCTC_.gpx');
 const ROSTER = resolve(ROOT, 'data/roster.json');
+const RESULTS = resolve(ROOT, 'data/results.json');
 const FALLBACKS = resolve(ROOT, 'data/fallbacks.json');
 const OUT = resolve(ROOT, 'public/replay.json');
 const DT_MS = 1000;
+// Ignore a GPX whose path is much longer than the loop: an untrimmed warmup /
+// pre-run / cooldown would corrupt the snap. Fall back to the official time.
+const TRACK_LEN_GUARD = 1.5;
 
 interface RosterEntry {
   id: string;
@@ -27,6 +37,15 @@ interface RosterEntry {
   /** Optional GPX path relative to repo root; defaults to data/tracks/<id>.gpx. */
   gpx?: string;
   color?: string;
+  /** Did Not Start: on the roster but never ran. */
+  dns?: boolean;
+}
+
+/** Total GPS path length in metres (to flag untrimmed warmup/cooldown). */
+function pathLengthM(coords: LngLat[]): number {
+  let d = 0;
+  for (let i = 1; i < coords.length; i++) d += haversineMeters(coords[i - 1], coords[i]);
+  return d;
 }
 
 function parseMmSs(s: string): number {
@@ -46,6 +65,7 @@ function round(n: number, dp: number): number {
 
 function main(): void {
   const roster = readJson<RosterEntry[]>(ROSTER, []);
+  const results = readJson<Record<string, string>>(RESULTS, {});
   const fallbacks = readJson<Record<string, string>>(FALLBACKS, {});
   if (roster.length === 0) {
     throw new Error(`No roster at ${ROSTER}. Run \`npm run seed-demo\` or add runners.`);
@@ -60,50 +80,66 @@ function main(): void {
   roster.forEach((entry, i) => {
     const predictedFinishMs = parseMmSs(entry.predicted);
     const color = entry.color ?? colorFor(i);
+    const base = { id: entry.id, name: entry.name, color, predictedFinishMs };
+    // Official finish time (authoritative for the standings), if recorded.
+    const officialMs = results[entry.id] != null ? parseMmSs(results[entry.id]) : null;
     const gpxPath = entry.gpx
       ? resolve(ROOT, entry.gpx)
       : resolve(ROOT, 'data/tracks', `${entry.id}.gpx`);
+    const hasGpx = existsSync(gpxPath);
+
+    const roundActual = (a: RunnerActual): RunnerActual => ({
+      dtMs: a.dtMs,
+      count: a.count,
+      progressM: a.progressM.map((m) => round(m, 1)),
+    });
+    const finished = (finishMs: number, actual?: RunnerActual): Runner => ({
+      ...base,
+      actualFinishMs: finishMs,
+      deltaMs: finishMs - predictedFinishMs,
+      hasGps: actual !== undefined,
+      ...(actual ? { actual } : {}),
+    });
+    const noData = (dns = false): Runner => ({
+      ...base,
+      actualFinishMs: null,
+      deltaMs: null,
+      hasGps: false,
+      noData: true,
+      ...(dns ? { dns: true } : {}),
+    });
 
     let runner: Runner;
-    if (existsSync(gpxPath)) {
-      const { points } = parseGpxFile(gpxPath);
-      const matched = matchTrack(points, lut, DT_MS);
-      runner = {
-        id: entry.id,
-        name: entry.name,
-        color,
-        predictedFinishMs,
-        actualFinishMs: matched.finishMs,
-        deltaMs: matched.finishMs - predictedFinishMs,
-        hasGps: true,
-        actual: {
-          dtMs: matched.actual.dtMs,
-          count: matched.actual.count,
-          progressM: matched.actual.progressM.map((m) => round(m, 1)),
-        },
-      };
+    if (entry.dns) {
+      runner = noData(true);
+    } else if (hasGpx && officialMs !== null) {
+      // GPS draws the motion; the official time owns the finish/standings.
+      const { coords, points } = parseGpxFile(gpxPath);
+      const pathM = pathLengthM(coords);
+      if (pathM > lut.lengthM * TRACK_LEN_GUARD) {
+        console.warn(
+          `  ! ${entry.id}: GPX path ${(pathM / 1000).toFixed(1)} km >> ${(lut.lengthM / 1000).toFixed(1)} km loop — ignoring track (needs trimming); using official time.`,
+        );
+        runner = finished(officialMs);
+      } else {
+        runner = finished(officialMs, roundActual(matchToFinish(points, lut, DT_MS, officialMs).actual));
+      }
+    } else if (hasGpx) {
+      // GPX but no official time: lean on the track's own timing (needs stamps).
+      try {
+        const { points } = parseGpxFile(gpxPath);
+        const matched = matchTrack(points, lut, DT_MS);
+        runner = finished(matched.finishMs, roundActual(matched.actual));
+      } catch (e) {
+        console.warn(`  ! ${entry.id}: unusable GPX, no official time — no data. (${(e as Error).message})`);
+        runner = noData();
+      }
+    } else if (officialMs !== null) {
+      runner = finished(officialMs); // ran, no GPX (e.g. no watch): constant pace
     } else if (fallbacks[entry.id]) {
-      const actualFinishMs = parseMmSs(fallbacks[entry.id]);
-      runner = {
-        id: entry.id,
-        name: entry.name,
-        color,
-        predictedFinishMs,
-        actualFinishMs,
-        deltaMs: actualFinishMs - predictedFinishMs,
-        hasGps: false,
-      };
+      runner = finished(parseMmSs(fallbacks[entry.id]));
     } else {
-      runner = {
-        id: entry.id,
-        name: entry.name,
-        color,
-        predictedFinishMs,
-        actualFinishMs: null,
-        deltaMs: null,
-        hasGps: false,
-        noData: true,
-      };
+      runner = noData();
     }
 
     if (runner.actualFinishMs) maxFinish = Math.max(maxFinish, runner.actualFinishMs);
@@ -140,9 +176,10 @@ function main(): void {
 
   const gps = runners.filter((r) => r.hasGps).length;
   const fb = runners.filter((r) => !r.hasGps && !r.noData).length;
-  const nd = runners.filter((r) => r.noData).length;
+  const dns = runners.filter((r) => r.dns).length;
+  const nd = runners.filter((r) => r.noData && !r.dns).length;
   console.log(
-    `Baked ${OUT}\n  route: ${data.route.count} samples, ${(data.race.routeLengthM / 1000).toFixed(2)} km\n  runners: ${runners.length} (${gps} GPS, ${fb} finish-only, ${nd} no-data)\n  duration: ${(data.race.durationMs / 60000).toFixed(1)} min${prerace ? '\n  mode: PRE-RACE (predicted-pace preview — no results yet)' : ''}`,
+    `Baked ${OUT}\n  route: ${data.route.count} samples, ${(data.race.routeLengthM / 1000).toFixed(2)} km\n  runners: ${runners.length} (${gps} GPS, ${fb} finish-only, ${dns} DNS, ${nd} no-data)\n  duration: ${(data.race.durationMs / 60000).toFixed(1)} min${prerace ? '\n  mode: PRE-RACE (predicted-pace preview — no results yet)' : ''}`,
   );
 }
 

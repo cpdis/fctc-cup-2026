@@ -30,7 +30,8 @@ export function createLeaderboard(
       <span class="lb-rank"></span>
       <span class="lb-swatch" style="background:${r.color}"></span>
       <span class="lb-name">${escapeHtml(r.name)}</span>
-      <span class="lb-delta">${r.noData ? 'no data' : 'running'}</span>`;
+      <span class="lb-actual"></span>
+      <span class="lb-delta">${r.dns ? 'DNS' : r.noData ? 'no data' : 'running'}</span>`;
     row.addEventListener('click', () => opts.onSelect(r.id));
     rows.set(r.id, row);
     container.appendChild(row);
@@ -64,8 +65,14 @@ export function createLeaderboard(
   function paintRow(row: HTMLButtonElement, rank: number, finished: boolean, runner: Runner): void {
     const isWinner = finished && runner.id === winnerId;
     row.querySelector('.lb-rank')!.textContent = isWinner ? '🏆' : finished ? String(rank) : '·';
+    // Actual finish clock (blank until they cross the line).
+    const actualEl = row.querySelector('.lb-actual') as HTMLElement;
+    actualEl.textContent = finished ? formatClock(runner.actualFinishMs as number) : '';
     const deltaEl = row.querySelector('.lb-delta') as HTMLElement;
-    if (runner.noData) {
+    if (runner.dns) {
+      deltaEl.textContent = 'DNS';
+      deltaEl.dataset.sign = 'none';
+    } else if (runner.noData) {
       deltaEl.textContent = 'no data';
       deltaEl.dataset.sign = 'none';
     } else if (finished) {
@@ -77,7 +84,9 @@ export function createLeaderboard(
     }
     row.classList.toggle('finished', finished);
     row.classList.toggle('winner', isWinner);
-    row.title = `${runner.name} · predicted ${formatClock(runner.predictedFinishMs)}`;
+    row.title = `${runner.name} · predicted ${formatClock(runner.predictedFinishMs)} · actual ${
+      finished ? formatClock(runner.actualFinishMs as number) : '—'
+    }`;
   }
 
   return {

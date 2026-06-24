@@ -57,6 +57,8 @@ export interface Runner {
   hasGps: boolean;
   /** True when neither GPS nor a finish time was available. */
   noData?: boolean;
+  /** Did Not Start: on the roster, but never ran. Shown as "DNS", not "no data". */
+  dns?: boolean;
   actual?: RunnerActual;
 }
 

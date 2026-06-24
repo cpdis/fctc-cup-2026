@@ -563,7 +563,7 @@ body {
 
 .lb-row {
   display: grid;
-  grid-template-columns: 22px 12px 1fr auto;
+  grid-template-columns: 22px 12px 1fr auto auto;
   align-items: center;
   gap: 10px;
   width: 100%;
@@ -599,11 +599,20 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+/* Actual finish clock — neutral, sits left of the coloured differential. */
+.lb-actual {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--ink-dim);
+  font-variant-numeric: tabular-nums;
+}
 .lb-delta {
   font-family: var(--font-mono);
   font-size: 12px;
   color: var(--ink-dim);
   font-variant-numeric: tabular-nums;
+  min-width: 3.4em;
+  text-align: right;
 }
 .lb-delta[data-sign='early'] {
   color: var(--early);

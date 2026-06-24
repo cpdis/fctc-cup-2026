@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
-import { snapToProgress, resampleToTimeGrid, matchTrack } from '../scripts/match';
+import { snapToProgress, resampleToTimeGrid, matchTrack, matchToFinish } from '../scripts/match';
 import { buildRoute } from '../scripts/route';
 import { parseGpxFile } from '../scripts/gpx';
 import { progressToCoord } from '../src/geo';
@@ -139,5 +139,43 @@ describe('matchTrack — canonical Herdsman Lake track (characterization)', () =
     const onRoute: LngLat = [c[0], c[1]];
     expect(Number.isFinite(onRoute[0])).toBe(true);
     expect(prog[500]).toBeGreaterThan(0);
+  });
+});
+
+describe('matchToFinish — official finish time is authoritative', () => {
+  // Points evenly spaced along a 200 m straight route at 0,50,100,150,200 m.
+  function evenPoints(withTimes: boolean, gpsDurMs = 0): TrackPoint[] {
+    const meters = [0, 50, 100, 150, 200];
+    const n = meters.length;
+    return meters.map((m, i) => ({
+      lng: m * DEG,
+      lat: 0,
+      tMs: withTimes ? (i / (n - 1)) * gpsDurMs : NaN,
+    }));
+  }
+
+  it('places a timestamp-free track (Strava strips them) on the official clock', () => {
+    const { lut } = straightRoute(); // ~200 m
+    const m = matchToFinish(evenPoints(false), lut, 1000, 100_000);
+    expect(m.finishMs).toBe(100_000);
+    expect(m.actual.progressM[m.actual.count - 1]).toBeCloseTo(lut.lengthM, 5);
+    // Evenly-spaced points, uniform timing -> half the loop at half the time.
+    expect(m.actual.progressM[50]).toBeCloseTo(lut.lengthM / 2, 0);
+  });
+
+  it('overrides the GPS duration with the official finish (stretches the timing)', () => {
+    const { lut } = straightRoute();
+    // GPS says the run took 200 s; the official time is 100 s — official wins.
+    const m = matchToFinish(evenPoints(true, 200_000), lut, 1000, 100_000);
+    expect(m.finishMs).toBe(100_000);
+    expect(m.actual.progressM[m.actual.count - 1]).toBeCloseTo(lut.lengthM, 5);
+    expect(m.actual.progressM[50]).toBeCloseTo(lut.lengthM / 2, 0); // shape preserved, scaled
+  });
+
+  it('keeps progress monotonic and lands exactly on the loop length', () => {
+    const { lut } = straightRoute();
+    const p = matchToFinish(evenPoints(false), lut, 1000, 90_000).actual.progressM;
+    for (let i = 1; i < p.length; i++) expect(p[i]).toBeGreaterThanOrEqual(p[i - 1]);
+    expect(p[p.length - 1]).toBeCloseTo(lut.lengthM, 5);
   });
 });

@@ -81,23 +81,30 @@ Everything except the runner data is built and deployed in advance, so race
 morning is just:
 
 1. **Roster** — edit `data/roster.json`: one entry per runner with their
-   predicted finish:
+   predicted finish. Add `"dns": true` for anyone who was on the roster but
+   never started:
    ```json
    [{ "id": "ada", "name": "Ada", "predicted": "32:30" }]
    ```
-2. **GPS** — drop each runner's exported GPX into `data/tracks/<id>.gpx`
-   (filename matches the roster `id`).
-3. **Fallbacks** — for anyone whose GPX you couldn't get, add their finish time
-   to `data/fallbacks.json`:
+2. **Official times** — put the recorded finish times in `data/results.json`.
+   **This is the source of truth for the Cup**: every finish time, delta, and
+   standing comes from here, GPS or not.
    ```json
-   { "kit": "44:00" }
+   { "ada": "32:18", "kit": "44:00" }
    ```
-   They render as a clean constant-pace icon — no runner blocks the launch.
+3. **GPS (optional)** — drop each runner's exported GPX into
+   `data/tracks/<id>.gpx` (filename matches the roster `id`). A track only
+   *draws the motion*: its timing is stretched to land on the official finish,
+   so GPS quirks never affect the result. A track whose path is much longer than
+   the loop (an untrimmed warmup/pre-run) is auto-ignored with a warning —
+   trim it to the race and re-bake to use it. Strava strips per-point timestamps
+   from *other people's* exports; that's fine, the motion just runs at even pace.
 4. **Bake + deploy** — `npm run build`, then deploy (below). Done before coffee
    gets cold.
 
-A runner with neither a GPX nor a fallback is shown as "no data" and never breaks
-the build.
+Precedence per runner: `dns` → GPX + official (GPS motion, official finish) →
+official only (constant-pace icon) → `data/fallbacks.json` (legacy finish-only)
+→ "no data". A runner is never allowed to break the build.
 
 ### Pre-race preview
 

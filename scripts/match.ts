@@ -73,20 +73,18 @@ export function snapToProgress(
 }
 
 /**
- * Resample an irregular (time, progress) series onto a uniform dtMs grid of
- * race-elapsed time, so the runtime reads progress with a plain index + lerp.
+ * Resample an irregular (elapsed-time, progress) series onto a uniform dtMs grid
+ * of race-elapsed time, so the runtime reads progress with a plain index + lerp.
+ * Shared core; callers supply the per-point `elapsed` times and the `finishMs`.
  */
-export function resampleToTimeGrid(
-  points: TrackPoint[],
+function resampleGrid(
+  elapsed: number[],
   progressM: number[],
   lut: RouteLUT,
   dtMs: number,
-): MatchedRunner {
-  const t0 = points[0].tMs;
-  const elapsed = points.map((p) => p.tMs - t0);
-  const finishMs = elapsed[elapsed.length - 1];
+  finishMs: number,
+): RunnerActual {
   const count = Math.max(2, Math.floor(finishMs / dtMs) + 1);
-
   const out = new Array<number>(count);
   let j = 0;
   for (let k = 0; k < count; k++) {
@@ -99,8 +97,55 @@ export function resampleToTimeGrid(
   // Land exactly on the finish, and guard monotonicity after interpolation.
   out[count - 1] = lut.lengthM;
   for (let k = 1; k < count; k++) if (out[k] < out[k - 1]) out[k] = out[k - 1];
+  return { dtMs, count, progressM: out };
+}
 
-  return { actual: { dtMs, count, progressM: out }, finishMs };
+/**
+ * Resample using the track's own GPS timestamps as the elapsed clock — finish is
+ * the track's last timestamp. Used when a track carries its real timing.
+ */
+export function resampleToTimeGrid(
+  points: TrackPoint[],
+  progressM: number[],
+  lut: RouteLUT,
+  dtMs: number,
+): MatchedRunner {
+  const t0 = points[0].tMs;
+  const elapsed = points.map((p) => p.tMs - t0);
+  const finishMs = elapsed[elapsed.length - 1];
+  return { actual: resampleGrid(elapsed, progressM, lut, dtMs, finishMs), finishMs };
+}
+
+/**
+ * Per-point elapsed clock scaled so the last point lands exactly on `finishMs`.
+ * Uses the track's real GPS timing when present; otherwise (Strava strips
+ * timestamps from other people's exports) assumes evenly-spaced samples. Either
+ * way the official finish time is authoritative — the GPS only supplies the
+ * SHAPE of progress along the route, and we stretch it to the official time.
+ */
+function elapsedScaledToFinish(points: TrackPoint[], finishMs: number): number[] {
+  const n = points.length;
+  const timed = !Number.isNaN(points[0].tMs) && !Number.isNaN(points[n - 1].tMs);
+  if (!timed) return points.map((_, i) => (i / (n - 1)) * finishMs);
+  const t0 = points[0].tMs;
+  const total = points[n - 1].tMs - t0 || 1;
+  return points.map((p) => ((p.tMs - t0) / total) * finishMs);
+}
+
+/**
+ * Resample the snapped progress onto the race grid, stretched to an
+ * externally-supplied (official) finish time. This is the race-day path: the
+ * Cup result comes from the official times, the GPS only draws the motion.
+ */
+export function resampleToFinish(
+  points: TrackPoint[],
+  progressM: number[],
+  lut: RouteLUT,
+  dtMs: number,
+  finishMs: number,
+): MatchedRunner {
+  const elapsed = elapsedScaledToFinish(points, finishMs);
+  return { actual: resampleGrid(elapsed, progressM, lut, dtMs, finishMs), finishMs };
 }
 
 /** Convenience: snap + resample in one call. Throws if the track has no times. */
@@ -116,4 +161,21 @@ export function matchTrack(
   }
   const progressM = snapToProgress(points, lut, opts);
   return resampleToTimeGrid(points, progressM, lut, dtMs);
+}
+
+/**
+ * Snap + resample to a known finish time. Works with or without GPS timestamps
+ * (Strava strips them from others' exports), so it's the race-day path: official
+ * times set the finish, the track only draws the motion along the route.
+ */
+export function matchToFinish(
+  points: TrackPoint[],
+  lut: RouteLUT,
+  dtMs: number,
+  finishMs: number,
+  opts?: MatchOptions,
+): MatchedRunner {
+  if (points.length < 2) throw new Error('Track needs at least two points');
+  const progressM = snapToProgress(points, lut, opts);
+  return resampleToFinish(points, progressM, lut, dtMs, finishMs);
 }
