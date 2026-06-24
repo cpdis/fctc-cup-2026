@@ -1,5 +1,38 @@
 # FCTC Cup — planning notes
 
+## Session Update - 2026-06-24 (RACE DAY — PARKED)
+
+### What Was Done
+- **Live with the real 2026 result at fctc.fun/cup.** Loaded the 17 real
+  runners + final predicted times; pre-race predicted-pace preview mode
+  (`race.prerace`); palette expanded to 17 distinct hues; removed orphan demo
+  tracks.
+- **Official times are the source of truth** (`data/results.json`) for every
+  finish/delta/standing. Winner **Alex King 👑 by 0:04**. GPS only ever draws
+  motion (scaled to the official finish via `matchToFinish`).
+- **Pivoted to constant-pace-only:** dropped all 9 GPX (Strava strips timestamps
+  from others' exports; the self-intersecting loop caused snapping glitches).
+  Result identical; GPX code path kept dormant + a >1.5×-loop auto-skip guard.
+- **Leaderboard** shows actual time + differential; DNS rows (Claire, Rhys) read
+  "DNS".
+- **Custom OG link-preview image** (`scripts/make-og.ts`, `npm run og`) from the
+  real route; og:/twitter: meta wired in index.html; verified live.
+
+### Current State
+- Pushed to `main` (HEAD 2f83c29). 71/71 tests, typecheck + build clean.
+  Everything verified in Chrome and on the live URL.
+
+### Next Steps
+- [ ] Optional: drop the 5 missing GPX + a trimmed Grant track into
+      `data/tracks/<id>.gpx` and re-bake to add real motion (currently
+      constant-pace by choice; GPX reintroduces snapping risk).
+- [ ] Scraper cache: already-shared links may show the old card until expiry.
+
+### Blockers
+- None.
+
+---
+
 ## Session Update - 2026-06-10 (PARKED — end of day)
 
 ### What Was Done
