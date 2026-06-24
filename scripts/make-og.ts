@@ -135,7 +135,9 @@ async function main(): Promise<void> {
       args: ['--no-sandbox', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'],
     })
   ).newPage();
-  await page.setViewport({ width: W, height: H, deviceScaleFactor: 2 });
+  // DSF 1 so the PNG is exactly W x H — matches the og:image:width/height we
+  // declare in index.html (1200x630, the canonical card size).
+  await page.setViewport({ width: W, height: H, deviceScaleFactor: 1 });
   await page.setContent(html(buildSvg(data)), { waitUntil: 'load', timeout: 30000 });
   // 'load' fires before webfonts finish fetching; wait for them explicitly.
   await page.evaluate(async () => {
@@ -145,7 +147,7 @@ async function main(): Promise<void> {
   mkdirSync(dirname(OUT), { recursive: true });
   await page.screenshot({ path: OUT, type: 'png' });
   await page.browser().close();
-  console.log(`Wrote ${OUT} (${W}x${H} @2x)`);
+  console.log(`Wrote ${OUT} (${W}x${H})`);
 }
 
 void main();
