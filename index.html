@@ -11,6 +11,29 @@
       name="description"
       content="The FCTC Cup: watch every runner race their own predicted time around Herdsman Lake."
     />
+
+    <!-- Open Graph / Twitter link preview. og:image is absolute (scrapers don't
+         resolve relative paths); the app deploys under /cup/. -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="FCTC Cup" />
+    <meta property="og:title" content="FCTC Cup — Herdsman Lake" />
+    <meta
+      property="og:description"
+      content="Everyone calls their finish to the second; closest to their own prediction wins. Watch the whole field race the Herdsman Lake loop."
+    />
+    <meta property="og:url" content="https://fctc.fun/cup" />
+    <meta property="og:image" content="https://fctc.fun/cup/og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="The Herdsman Lake loop with the FCTC Cup field of runners strung along it." />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="FCTC Cup — Herdsman Lake" />
+    <meta
+      name="twitter:description"
+      content="Everyone calls their finish to the second; closest to their own prediction wins."
+    />
+    <meta name="twitter:image" content="https://fctc.fun/cup/og.png" />
+
     <!-- Set the theme before first paint so there's no flash of the wrong one.
          src/theme.ts re-derives the same value for the runtime. -->
     <script>
