@@ -226,6 +226,28 @@ body {
   border-color: var(--accent-ink);
 }
 
+/* Home — back to the fctc.fun homepage; same icon-button family as the toggles */
+#home-link {
+  pointer-events: auto;
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  align-self: center;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--glass);
+  color: var(--ink-faint);
+  text-decoration: none;
+  transition: color var(--dur-ui) var(--ease-out), transform var(--dur-press) var(--ease-out);
+}
+#home-link:hover {
+  color: var(--ink);
+}
+#home-link:active {
+  transform: scale(0.92);
+}
+
 /* Boot / error */
 #boot {
   position: absolute;
