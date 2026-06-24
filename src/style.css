@@ -166,10 +166,11 @@ body {
   padding: 2px 8px;
   white-space: nowrap;
 }
-/* On narrow phones the pill needs the room, so drop the decorative sub — but
-   only pre-race, when the pill is actually present (:has scopes it there). */
-@media (max-width: 600px) {
-  #masthead:has(.masthead-status) .masthead-sub {
+/* Phones: the masthead carries the title plus four icon buttons (theme, camera,
+   names, home) — and the pre-race pill on top of that. Drop the decorative sub
+   so every icon stays on-screen and tappable. */
+@media (max-width: 430px) {
+  .masthead-sub {
     display: none;
   }
 }
