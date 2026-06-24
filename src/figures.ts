@@ -18,6 +18,11 @@ import type { LngLat, Runner } from './types';
 const ENTRANCE_STAGGER_MS = 55;
 const FACE_EPS = 1e-6; // min lng delta before we flip the facing
 
+// Name-label declutter geometry (screen px, relative to the marker's feet).
+const LABEL_LIFT = 31; // feet → label bottom (figure height + a little air)
+const LABEL_H = 15; // approx chip height
+const LABEL_PAD = 3; // min gap so neighbouring chips don't kiss
+
 // One stride = legs/arms swinging around a neutral standing pose, so a figure
 // with its animation removed (paused/finished) just stands.
 const FIGURE_SVG = `
@@ -38,12 +43,16 @@ export interface FiguresHandle {
   /** Move every figure to the engine's position for this frame. */
   update(raceMs: number): void;
   setSelected(id: string | null): void;
+  /** Show or hide the whole name-label layer. */
+  setLabelsVisible(on: boolean): void;
 }
 
 interface Fig {
   runner: Runner;
   marker: maplibregl.Marker;
   el: HTMLElement; // inner element: flip/dim/scale live here
+  nameEl: HTMLElement; // the name chip above the figure
+  labelW: number; // cached chip width (px), measured once
   lastLng: number;
   facing: 1 | -1;
   done: boolean;
@@ -56,6 +65,7 @@ export function createFigures(
   onSelect: (id: string) => void,
   winnerId?: string | null,
   prerace = false,
+  progressOf: (id: string) => number = () => 0,
 ): FiguresHandle {
   // Stride cadence follows predicted pace: the bold predictions scurry, the
   // cautious ones lope. Mapped across the field to 0.46–0.68 s per stride.
@@ -81,6 +91,12 @@ export function createFigures(
     const dust = document.createElement('div');
     dust.className = 'fig-dust';
     el.appendChild(dust);
+    // Always-on name label above the figure. Lives inside .runner-fig (only the
+    // svg flips, so the text never mirrors); rides the figure marker for free.
+    const name = document.createElement('div');
+    name.className = 'fig-name';
+    name.textContent = runner.name;
+    el.appendChild(name);
     el.addEventListener('click', (e) => {
       e.stopPropagation(); // markers live in the canvas container; don't deselect
       onSelect(runner.id);
@@ -88,10 +104,40 @@ export function createFigures(
     outer.appendChild(el);
 
     const marker = new maplibregl.Marker({ element: outer, anchor: 'bottom' });
-    return { runner, marker, el, lastLng: NaN, facing: 1 as const, done: false };
+    return { runner, marker, el, nameEl: name, labelW: 0, lastLng: NaN, facing: 1 as const, done: false };
   });
 
   let added = false;
+  let labelsOn = true;
+  let selectedId: string | null = null;
+
+  // Hide any name chip that would overlap one already shown, front-runner first
+  // (in a clump the leader's name wins). The selected runner is skipped — it
+  // gets the richer on-map label from main.ts instead of a plain chip.
+  function declutter(): void {
+    if (!labelsOn || !added) return;
+    const order = figs.slice().sort((a, b) => progressOf(b.runner.id) - progressOf(a.runner.id));
+    const placed: { l: number; r: number; t: number; b: number }[] = [];
+    for (const f of order) {
+      const pos = f.runner.id === selectedId ? undefined : positionOf(f.runner.id);
+      if (!pos) {
+        f.nameEl.classList.add('hidden');
+        continue;
+      }
+      if (f.labelW === 0) f.labelW = f.nameEl.offsetWidth; // measure once, while shown
+      const half = (f.labelW || 44) / 2 + LABEL_PAD;
+      const p = map.project(pos);
+      const bottom = p.y - LABEL_LIFT;
+      const box = { l: p.x - half, r: p.x + half, t: bottom - LABEL_H - LABEL_PAD, b: bottom + LABEL_PAD };
+      const clash = placed.some((q) => box.l < q.r && box.r > q.l && box.t < q.b && box.b > q.t);
+      if (clash) {
+        f.nameEl.classList.add('hidden');
+      } else {
+        f.nameEl.classList.remove('hidden');
+        placed.push(box);
+      }
+    }
+  }
 
   function update(raceMs: number): void {
     for (const f of figs) {
@@ -126,11 +172,13 @@ export function createFigures(
       // Entrance plays via CSS once the .in class lands a frame after add.
       requestAnimationFrame(() => figs.forEach((f) => f.el.classList.add('in')));
     }
+    declutter();
   }
 
   return {
     update,
     setSelected(id: string | null): void {
+      selectedId = id;
       for (const f of figs) {
         const sel = f.runner.id === id;
         f.el.classList.toggle('sel', sel);
@@ -138,6 +186,12 @@ export function createFigures(
         // Stacking: selected on top, winner above the crowd, others natural.
         f.marker.getElement().style.zIndex = sel ? '3' : f.runner.id === winnerId ? '2' : '';
       }
+      declutter(); // re-place chips immediately (selection hides its own chip)
+    },
+    setLabelsVisible(on: boolean): void {
+      labelsOn = on;
+      document.body.classList.toggle('labels-off', !on);
+      if (on) declutter();
     },
   };
 }

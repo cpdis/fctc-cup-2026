@@ -107,6 +107,8 @@ export interface EngineHandle {
   setSelected(id: string | null): void;
   /** Current icon position for a runner, for the on-map label (U6). */
   positionOf(id: string): LngLat | undefined;
+  /** Current progress along the route (metres) — used to prioritise labels. */
+  progressOf(id: string): number;
   /** Snapshot of every active runner's icon position (reused array). */
   positionsSnapshot(): LngLat[];
 }
@@ -164,6 +166,7 @@ export function createEngine(map: MlMap, data: ReplayData): EngineHandle {
   map.on('styledata', ensureLayers);
 
   const positions = new Map<string, LngLat>();
+  const progressM = new Map<string, number>();
   const snapshot: LngLat[] = [];
   let selected: string | null = null;
   let entranceStart = NaN;
@@ -206,6 +209,7 @@ export function createEngine(map: MlMap, data: ReplayData): EngineHandle {
       // finished. The figure marker (src/figures.ts) reads this via positionOf.
       const ic = finished ? (corral.get(r.id) as LngLat) : progressToCoord(route, prog);
       positions.set(r.id, ic);
+      progressM.set(r.id, prog);
 
       // Ghost (constant predicted pace): a faint echo behind the real run. It's
       // redundant pre-race (it would sit exactly under the figure), so hide it
@@ -236,6 +240,7 @@ export function createEngine(map: MlMap, data: ReplayData): EngineHandle {
     render,
     setSelected: (id) => (selected = id),
     positionOf: (id) => positions.get(id),
+    progressOf: (id) => progressM.get(id) ?? 0,
     positionsSnapshot: () => {
       snapshot.length = 0;
       for (const p of positions.values()) snapshot.push(p);

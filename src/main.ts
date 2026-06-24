@@ -119,6 +119,7 @@ async function main(): Promise<void> {
     (id) => setSelection(selectedId === id ? null : id),
     winnerId,
     prerace,
+    (id) => engine.progressOf(id),
   );
   frames.push((t) => figures.update(t));
   // The style load can outlast the boot dirty window; without this the engine
@@ -145,6 +146,20 @@ async function main(): Promise<void> {
     });
     camera.onChange(syncCam);
     syncCam(camera.enabled());
+  }
+
+  // --- name-labels toggle --------------------------------------------------
+  // The all-runner name layer (declutters itself); on by default.
+  const labelsBtn = document.getElementById('labels-toggle') as HTMLButtonElement | null;
+  if (labelsBtn) {
+    let on = true;
+    labelsBtn.addEventListener('click', () => {
+      on = !on;
+      figures.setLabelsVisible(on);
+      labelsBtn.classList.toggle('active', on);
+      labelsBtn.setAttribute('aria-pressed', String(on));
+      markDirty(300);
+    });
   }
 
   // --- selection + on-map label (U6) -------------------------------------

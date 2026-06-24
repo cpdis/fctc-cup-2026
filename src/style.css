@@ -248,6 +248,32 @@ body {
   transform: scale(0.92);
 }
 
+/* Name-labels toggle — same icon-button family; .active when labels are shown */
+#labels-toggle {
+  pointer-events: auto;
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  align-self: center;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--glass);
+  color: var(--ink-faint);
+  cursor: pointer;
+  transition: color var(--dur-ui) var(--ease-out), transform var(--dur-press) var(--ease-out);
+}
+#labels-toggle:hover {
+  color: var(--ink);
+}
+#labels-toggle:active {
+  transform: scale(0.92);
+}
+#labels-toggle.active {
+  color: var(--accent-ink);
+  border-color: var(--accent-ink);
+}
+
 /* Boot / error */
 #boot {
   position: absolute;
@@ -733,6 +759,32 @@ body {
 .runner-fig svg {
   display: block;
   overflow: visible;
+}
+/* Name label above each runner (exploration). Sibling of the svg, so the flip
+   never mirrors it; colour-bordered to tie it to the runner. */
+.fig-name {
+  position: absolute;
+  left: 50%;
+  bottom: 100%;
+  transform: translateX(-50%);
+  margin-bottom: 4px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  color: var(--ink);
+  background: var(--bg-elev);
+  border: 1px solid var(--fig-color);
+  border-radius: 5px;
+  padding: 2px 5px;
+  pointer-events: none;
+  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.35);
+}
+/* Decluttered out this frame, or the whole layer toggled off. */
+.fig-name.hidden,
+body.labels-off .fig-name {
+  display: none;
 }
 .runner-fig.flip svg {
   transform: scaleX(-1);
